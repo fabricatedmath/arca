@@ -20,23 +20,20 @@ class HasEmpty a where
     getEmpty :: a
 
 runWorld :: HasStackLens w (Exec w) => State w ()
-runWorld = 
-    do
-        me <- popL stackLens
-        case me of
-            Nothing -> return ()
-            Just (Exec e) ->
-                do
-                    case e of
-                        Expression a -> stackOpFunc a
-                        Open ts -> pushListL stackLens $ map Exec ts
-                    runWorld
+runWorld = do
+    me <- popL stackLens
+    case me of
+        Nothing -> return ()
+        Just (Exec e) -> do
+            case e of
+                Expression a -> stackOpFunc a
+                Open ts -> pushListL stackLens $ map Exec ts
+            runWorld
 
 
 runLang :: forall w. (HasWorldParser w, HasStackLens w (Exec w), HasEmpty w) => Text -> Either String w
-runLang program = 
-    do
-        opTree <- Exec <$> parseLang Proxy program :: Either String (Exec w)
-        let m = pushL stackLens opTree *> runWorld
-        return $ execState m getEmpty
+runLang program =  do
+    opTree <- Exec <$> parseLang Proxy program :: Either String (Exec w)
+    let m = pushL stackLens opTree *> runWorld
+    return $ execState m getEmpty
 

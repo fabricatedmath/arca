@@ -10,7 +10,10 @@ import Control.Monad.State.Strict
 import Data.Proxy (Proxy)
 import Data.Text (Text)
 
-newtype Stack a = Stack [a]
+newtype Stack a = 
+  Stack 
+  { unStack :: [a]
+  }
   deriving Show
 
 type StackLens s a = Lens' s (Stack a)

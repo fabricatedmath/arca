@@ -73,10 +73,9 @@ instance HasStack SymbolWorld AST where
         , multiplyOp astProxy
         ] where astProxy = Proxy :: Proxy AST
     stackParseLiteral _ = 
-        let
-            ei = textRead $ T.signed T.decimal :: Text -> Either String Int
-        in Just $ fmap (\i -> AST $ Node (FromInteger i) []). ei
-
+        Just $ fmap (\i -> AST $ Node (FromInteger i) []) . ei
+            where ei = textRead $ T.signed T.decimal :: Text -> Either String Int
+            
 instance HasWorldParser SymbolWorld where
     worldTypes = 
         [ StackType (Proxy :: Proxy (SymbolWorld, Exec SymbolWorld))
