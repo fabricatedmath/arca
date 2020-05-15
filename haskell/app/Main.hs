@@ -4,8 +4,8 @@ module Main where
 
 import Control.Monad.State.Strict
 
-import Epigenisys.Language (drawLanguageTree, WorldParserMap, parseText, worldParser, opify, printWorldStackOps)
-import Epigenisys.World
+import Epigenisys.Language.Parser (drawLanguageTree, WorldParserMap, parseText, worldParser, opify, printWorldStackOps)
+import Epigenisys.Worlds.SimpleWorld
 
 import Data.Proxy
 import Data.Text (Text)
@@ -24,13 +24,4 @@ testProgram4 = "(Integer.1 Integer.2 Integer.+ Integer.convertToFloat2)"
 
 
 main :: IO ()
-main =
-  do
-    let eWorld = do 
-                  textTree <- parseText testProgram4
-                  let parserMap = worldParser :: WorldParserMap World
-                  opTree <- opify parserMap textTree
-                  let world = startWorld $ Exec opTree
-                  return $ execState runWorld world
-    print eWorld
-    
+main = print "dogs"

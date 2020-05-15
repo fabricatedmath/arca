@@ -1,7 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Epigenisys.Types where
+module Epigenisys.Language.Types where
 
 import Control.Lens
 

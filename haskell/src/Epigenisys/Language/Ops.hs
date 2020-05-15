@@ -4,13 +4,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Epigenisys.Ops where
+module Epigenisys.Language.Ops where
 
 import qualified Data.Text as T (append, pack)
 import Data.Typeable
 
-import Epigenisys.Stack (get, put, popL, pushL)
-import Epigenisys.Types
+import Epigenisys.Language.Stack (get, put, popL, pushL)
+import Epigenisys.Language.Types
 
 literalOp :: forall w a. (HasStackLens w a, Show a) => a -> ProxyPartialStackOp w a
 literalOp a _ = (PartialStackOp (T.pack $ show a) $ pushL (stackLens :: StackLens w a) a)

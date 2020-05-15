@@ -7,24 +7,19 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 
-module Epigenisys.World where
+module Epigenisys.Worlds.SimpleWorld where
 
 import Control.Lens
 
 import Data.Proxy
 import qualified Data.Text.Read as T (decimal, signed, rational)
 
-import Epigenisys.Language 
-  (LanguageTree(..), StackOp(..), HasStack(..), HasWorldParser(..), StackName(..), StackType(..), textRead)
-import Epigenisys.Ops 
-import Epigenisys.Stack
-import Epigenisys.Types (HasStackLens(..), Stack(..))
-
-newtype Exec w = Exec (LanguageTree (StackOp w))
-
-instance Show (Exec w) where
-  show (Exec (Expression a)) = show a
-  show (Exec (Open as)) = "(" ++ unwords (map (show . Exec) as) ++ ")"
+import Epigenisys.Language
+import Epigenisys.Language.Parser
+  (HasStack(..), HasWorldParser(..), StackName(..), StackType(..), textRead)
+import Epigenisys.Language.Ops 
+import Epigenisys.Language.Stack
+import Epigenisys.Language.Types (HasStackLens(..))
 
 data World =
   World
@@ -36,48 +31,14 @@ data World =
 
 makeLenses ''World
 
-emptyWorld :: World 
-emptyWorld = 
-  World 
-  { _execStack = empty
-  , _intStack = empty
-  , _integerStack = empty
-  , _floatStack = empty
-  }
-
-startWorld :: Exec World -> World
-startWorld exec = 
-  World 
-  { _execStack = Stack [exec]
-  , _intStack = Stack []
-  , _integerStack = Stack []
-  , _floatStack = Stack []
-  }
-
-runWorld :: State World ()
-runWorld = 
-  do
-    me <- popL execStack 
-    case me of
-      Nothing -> return ()
-      Just (Exec e) ->
-        do
-          case e of
-            Expression a -> stackOpFunc a
-            Open ts -> pushListL execStack $ map Exec ts
-          runWorld
-
-
-runWorldStep :: State World ()
-runWorldStep = 
-  do
-    me <- popL execStack 
-    case me of
-      Nothing -> return ()
-      Just (Exec e) ->
-        case e of
-          Expression a -> stackOpFunc a
-          Open ts -> pushListL execStack $ map Exec ts
+instance HasEmpty World where
+  getEmpty = 
+    World 
+    { _execStack = empty
+    , _intStack = empty
+    , _integerStack = empty
+    , _floatStack = empty
+    }
 
 instance HasWorldParser World where
   worldTypes = 

@@ -32,6 +32,10 @@ library:
   source-dirs: src
   ghc-options:
   - -Wall
+  extra-lib-dirs:
+    /home/cdurham/epigenisys/cuda/build
+  extra-libraries:
+    somethingLib
 
 executables:
   epigenisys-exe:

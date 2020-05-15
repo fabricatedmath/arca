@@ -5,7 +5,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module Epigenisys.SymbolWorld where
+module Epigenisys.Worlds.SymbolWorld where
 
 import Control.Lens
 
@@ -15,9 +15,10 @@ import qualified Data.Text.Read as T (decimal, signed)
 import Data.Tree
 
 import Epigenisys.Language
-import Epigenisys.Ops
-import Epigenisys.Stack
-import Epigenisys.Types
+import Epigenisys.Language.Parser
+import Epigenisys.Language.Ops
+import Epigenisys.Language.Stack
+import Epigenisys.Language.Types
 
 newtype AST = 
     AST 
@@ -39,13 +40,6 @@ instance Num AST where
     signum t = AST $ Node Signum $ map unAST [t]
     fromInteger i = AST $ Node (FromInteger $ fromIntegral i) []
 
-
-newtype Exec w = Exec (LanguageTree (StackOp w))
-
-instance Show (Exec w) where
-    show (Exec (Expression a)) = show a
-    show (Exec (Open as)) = "(" ++ unwords (map (show . Exec) as) ++ ")"
-
 data SymbolWorld = 
     SymbolWorld 
     { _execStack :: Stack (Exec SymbolWorld)
@@ -53,6 +47,13 @@ data SymbolWorld =
     } deriving Show
 
 makeLenses ''SymbolWorld
+
+instance HasEmpty SymbolWorld where
+    getEmpty = 
+        SymbolWorld 
+        { _execStack = empty
+        , _astStack = empty
+        }
 
 instance HasStackLens SymbolWorld (Exec SymbolWorld) where
     stackLens = execStack
@@ -82,29 +83,3 @@ instance HasWorldParser SymbolWorld where
         , StackType (Proxy :: Proxy (SymbolWorld, AST))
         ]
 
-emptySymbolWorld :: SymbolWorld
-emptySymbolWorld = 
-    SymbolWorld 
-    { _execStack = empty
-    , _astStack = empty
-    }
-
-startSymbolWorld :: Exec SymbolWorld -> SymbolWorld
-startSymbolWorld exec = 
-    SymbolWorld 
-    { _execStack = Stack [exec]
-    , _astStack = Stack []
-    }
-
-runSymbolWorld :: State SymbolWorld ()
-runSymbolWorld = 
-    do
-        me <- popL execStack
-        case me of
-            Nothing -> return ()
-            Just (Exec e) ->
-                do
-                    case e of
-                        Expression a -> stackOpFunc a
-                        Open ts -> pushListL execStack $ map Exec ts
-                    runSymbolWorld

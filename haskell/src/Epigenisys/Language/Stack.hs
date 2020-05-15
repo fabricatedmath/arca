@@ -1,6 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
 
-module Epigenisys.Stack
+module Epigenisys.Language.Stack
   (
     Stack, StackLens,
     popL, pushL, pushListL,
@@ -11,7 +11,7 @@ module Epigenisys.Stack
 import Control.Lens
 import Control.Monad.State.Strict
 
-import Epigenisys.Types
+import Epigenisys.Language.Types
 
 empty :: Stack a
 empty = Stack []
