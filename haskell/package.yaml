@@ -25,6 +25,7 @@ dependencies:
 - scientific
 - attoparsec
 - text
+- text-show
 - containers
 - mtl
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric, DerivingVia #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -14,6 +15,11 @@ import Control.Lens
 import Data.Proxy
 import qualified Data.Text.Read as T (decimal, signed, rational)
 
+import GHC.Generics
+
+import TextShow
+import TextShow.Generic
+
 import Epigenisys.Language
 import Epigenisys.Language.Parser
   (HasStack(..), HasWorldParser(..), StackName(..), StackType(..), textRead)
@@ -27,7 +33,8 @@ data World =
   , _intStack :: Stack Int
   , _integerStack :: Stack Integer
   , _floatStack :: Stack Float
-  } deriving Show
+  } deriving (Generic, Show)
+    deriving TextShow via FromGeneric World
 
 makeLenses ''World
 

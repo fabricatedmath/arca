@@ -1,10 +1,14 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Epigenisys.Language where
 
 import Data.Proxy
 import Data.Text (Text)
+import qualified Data.Text.Lazy as T
+
+import TextShow
 
 import Epigenisys.Language.Parser
 import Epigenisys.Language.Stack
@@ -15,6 +19,10 @@ newtype Exec w = Exec (LanguageTree (StackOp w))
 instance Show (Exec w) where
     show (Exec (Expression a)) = show a
     show (Exec (Open as)) = "(" ++ unwords (map (show . Exec) as) ++ ")"
+
+instance TextShow (Exec w) where
+    showb (Exec (Expression a)) = showb a
+    showb (Exec (Open as)) = fromText "(" <> fromLazyText (T.unwords (map (toLazyText . showb . Exec) as)) <> fromText ")"
 
 class HasEmpty a where
     getEmpty :: a

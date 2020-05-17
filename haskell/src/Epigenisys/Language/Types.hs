@@ -1,4 +1,6 @@
+{-# LANGUAGE DeriveGeneric, DerivingVia #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 
 module Epigenisys.Language.Types where
@@ -10,11 +12,17 @@ import Control.Monad.State.Strict
 import Data.Proxy (Proxy)
 import Data.Text (Text)
 
+import GHC.Generics
+
+import TextShow
+import TextShow.Generic
+
 newtype Stack a = 
   Stack 
   { unStack :: [a]
   }
-  deriving Show
+  deriving (Show, Generic)
+  deriving TextShow via FromGeneric (Stack a)
 
 type StackLens s a = Lens' s (Stack a)
 
@@ -29,6 +37,9 @@ data PartialStackOp w = PartialStackOp Text (StackFunc w)
 
 instance Show (PartialStackOp w) where
   show (PartialStackOp t _) = "PartialStackOp (" ++ show t ++ ")"
+
+instance TextShow (PartialStackOp w) where
+  showb (PartialStackOp t _) = "PartialStackOp (" <> fromText t <> ")"
 
 class ConvertType a b where
   convertType :: a -> b

@@ -1,4 +1,4 @@
-
+{-# LANGUAGE DeriveGeneric, DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -11,8 +11,14 @@ import Control.Lens
 
 import Data.Proxy
 import Data.Text (Text)
+import qualified Data.Text as T
 import qualified Data.Text.Read as T (decimal, signed)
 import Data.Tree
+
+import GHC.Generics
+
+import TextShow
+import TextShow.Generic
 
 import Epigenisys.Language
 import Epigenisys.Language.Parser
@@ -27,6 +33,9 @@ newtype AST =
 
 instance Show AST where
     show (AST t) = "\n" ++ drawTree (fmap show t)
+
+instance TextShow AST where
+    showb (AST t) = "\n" <> fromText (T.pack (drawTree (fmap show t)))
 
 data Op = Add | Subtract | Multiply | Negate | Abs | Signum | FromInteger Int | Symbol String
     deriving Show
@@ -44,7 +53,9 @@ data SymbolWorld =
     SymbolWorld 
     { _execStack :: Stack (Exec SymbolWorld)
     , _astStack :: Stack AST
-    } deriving Show
+    } 
+    deriving (Generic, Show)
+    deriving TextShow via FromGeneric SymbolWorld
 
 makeLenses ''SymbolWorld
 

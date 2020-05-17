@@ -6,18 +6,20 @@
 
 module Epigenisys.Language.Ops where
 
-import qualified Data.Text as T (append, pack)
+import qualified Data.Text as T (append)
 import Data.Typeable
+
+import TextShow
 
 import Epigenisys.Language.Stack (get, put, popL, pushL)
 import Epigenisys.Language.Types
 
-literalOp :: forall w a. (HasStackLens w a, Show a) => a -> ProxyPartialStackOp w a
-literalOp a _ = (PartialStackOp (T.pack $ show a) $ pushL (stackLens :: StackLens w a) a)
+literalOp :: forall w a. (HasStackLens w a, TextShow a) => a -> ProxyPartialStackOp w a
+literalOp a _ = (PartialStackOp (showt a) $ pushL (stackLens :: StackLens w a) a)
 
 convertTypeOp :: forall w a b. (HasStackLens w a, HasStackLens w b, ConvertType a b, Typeable b) => ProxyPartialStackOp w (a,b)
 convertTypeOp _ = PartialStackOp opName $ convertOp (stackLens :: StackLens w a) (stackLens :: StackLens w b) convertType
-  where opName = "convertTo" `T.append` (T.pack $ show $ typeRep (Proxy :: Proxy b))
+  where opName = "convertTo" `T.append` (showt $ typeRep (Proxy :: Proxy b))
 
 convertOp :: StackLens w a -> StackLens w b -> (a -> b) -> StackFunc w
 convertOp la lb f = 

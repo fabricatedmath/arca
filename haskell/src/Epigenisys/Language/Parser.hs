@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric, DerivingVia #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -22,11 +23,17 @@ import Data.Text.Read (Reader)
 
 import Data.Proxy
 
+import GHC.Generics
+
+import TextShow
+import TextShow.Generic
+
 import Epigenisys.Language.Ops (literalOp)
 import Epigenisys.Language.Types
 
 data LanguageTree a = Open (LanguageForest a) | Expression a
-  deriving Show
+  deriving (Generic, Show)
+  deriving TextShow via FromGeneric (LanguageTree a)
 
 type LanguageForest a = [LanguageTree a]
 
@@ -42,14 +49,17 @@ instance Traversable LanguageTree where
     traverse f (Expression a) = Expression <$> f a
     traverse f (Open as) = Open <$> traverse (traverse f) as
 
-data StackOpText = StackOpText StackName StackOpName
-    deriving Show
+newtype StackName = StackName { unStackName :: Text }
+  deriving (Eq, Generic, Ord, Show)
+  deriving TextShow via FromGeneric StackName
 
 newtype StackOpName = StackOpName { unStackOpName :: Text }
-    deriving (Eq, Ord, Show)
+  deriving (Eq, Generic, Ord, Show)
+  deriving TextShow via FromGeneric StackName
 
-newtype StackName = StackName { unStackName :: Text }
-  deriving (Eq, Ord, Show)
+data StackOpText = StackOpText StackName StackOpName
+  deriving (Generic, Show)
+  deriving TextShow via FromGeneric StackOpText
 
 drawLanguageTree :: LanguageTree String -> String
 drawLanguageTree = unlines . draw
@@ -96,7 +106,7 @@ parseText =  A.parseOnly parser
                 second <- A.takeWhile1 (\c -> c /= '(' && c /= ')' && not (isSpace c))
                 return $ Expression $ StackOpText (StackName first) (StackOpName second)
 
-class (HasStackLens w a, Show a) => HasStack w a where
+class (HasStackLens w a, Show a, TextShow a) => HasStack w a where
   stackName :: Proxy (w,a) -> StackName
   stackOps :: Proxy (w,a) -> [PartialStackOp w]
   stackParseLiteral :: Proxy (w,a) -> Maybe (Text -> Either String a)
@@ -122,6 +132,10 @@ instance Show (StackOp w) where
     unStackName (stackOpStackName sop) 
     `T.append` "." `T.append` 
     unStackOpName (stackOpName sop)
+
+instance TextShow (StackOp w) where
+  showb sop = 
+    (fromText $ unStackName $ stackOpStackName sop) <> singleton '.' <> (fromText $ unStackOpName $ stackOpName sop)
 
 newtype WorldParserMap w = WorldParserMap (Map StackName (StackParser w))
 
