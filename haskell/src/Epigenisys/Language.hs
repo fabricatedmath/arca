@@ -2,7 +2,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Epigenisys.Language where
+module Epigenisys.Language (
+    Stack(..), Exec(..), HasEmpty(..), runLang, HasStack(..),
+    HasWorldParser(..), StackType(..), StackOp(..), textRead, StackName(..)
+    )
+where
 
 import Data.Proxy
 import Data.Text (Text)
@@ -10,9 +14,12 @@ import qualified Data.Text.Lazy as T
 
 import TextShow
 
-import Epigenisys.Language.Parser
+import Epigenisys.Language.Ops 
+import Epigenisys.Language.Parser (
+    LanguageTree(..), StackOp(..), HasWorldParser(..), parseLang, HasStack(..), StackType(..), textRead,
+    StackName(..)
+    )
 import Epigenisys.Language.Stack
-import Epigenisys.Language.Types
 
 newtype Exec w = Exec (LanguageTree (StackOp w))
 

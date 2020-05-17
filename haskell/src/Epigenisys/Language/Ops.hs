@@ -6,13 +6,40 @@
 
 module Epigenisys.Language.Ops where
 
+import Data.Text (Text)
 import qualified Data.Text as T (append)
 import Data.Typeable
 
 import TextShow
 
-import Epigenisys.Language.Stack (get, put, popL, pushL)
-import Epigenisys.Language.Types
+import Epigenisys.Language.Stack
+
+type StackFunc w = State w ()
+
+type ProxyPartialStackOp w a = Proxy a -> PartialStackOp w
+
+data PartialStackOp w = PartialStackOp Text (StackFunc w)
+
+instance Show (PartialStackOp w) where
+  show (PartialStackOp t _) = "PartialStackOp (" ++ show t ++ ")"
+
+instance TextShow (PartialStackOp w) where
+  showb (PartialStackOp t _) = "PartialStackOp (" <> fromText t <> ")"
+
+class ConvertType a b where
+  convertType :: a -> b
+
+instance ConvertType Int Float where
+  convertType = fromIntegral
+
+instance ConvertType Float Int where
+  convertType = round
+
+instance ConvertType Integer Float where
+  convertType = fromIntegral
+
+instance ConvertType Float Integer where
+  convertType = round
 
 literalOp :: forall w a. (HasStackLens w a, TextShow a) => a -> ProxyPartialStackOp w a
 literalOp a _ = (PartialStackOp (showt a) $ pushL (stackLens :: StackLens w a) a)

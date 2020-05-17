@@ -28,8 +28,8 @@ import GHC.Generics
 import TextShow
 import TextShow.Generic
 
-import Epigenisys.Language.Ops (literalOp)
-import Epigenisys.Language.Types
+import Epigenisys.Language.Ops (literalOp, PartialStackOp(..), StackFunc)
+import Epigenisys.Language.Stack (HasStackLens)
 
 data LanguageTree a = Open (LanguageForest a) | Expression a
   deriving (Generic, Show)

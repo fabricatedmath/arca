@@ -13,7 +13,6 @@ import TextShow
 
 import Epigenisys.FFI.Test
 import Epigenisys.Language 
-import Epigenisys.Language.Types (unStack)
 import Epigenisys.Worlds.SimpleWorld
 import Epigenisys.Worlds.SymbolWorld
 import qualified Epigenisys.Worlds.CudaWorld as C

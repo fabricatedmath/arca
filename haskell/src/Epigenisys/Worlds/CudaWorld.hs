@@ -22,10 +22,9 @@ import TextShow
 import TextShow.Generic
 
 import Epigenisys.Language
-import Epigenisys.Language.Parser
+--import Epigenisys.Language.Parser
 import Epigenisys.Language.Ops
 import Epigenisys.Language.Stack
-import Epigenisys.Language.Types
 
 class ConvertNum a b where
   convertNum :: a -> b

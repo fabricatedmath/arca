@@ -25,7 +25,7 @@ import Epigenisys.Language.Parser
   (HasStack(..), HasWorldParser(..), StackName(..), StackType(..), textRead)
 import Epigenisys.Language.Ops 
 import Epigenisys.Language.Stack
-import Epigenisys.Language.Types (HasStackLens(..))
+
 
 data World =
   World
