@@ -2,18 +2,38 @@
 module Main where
 
 import Control.Applicative
+import Control.Arrow 
 import Control.Monad (void)
 
 import Data.Attoparsec.Text (Parser)
 import qualified Data.Attoparsec.Text as A
 
 import Data.Char (isSpace)
+import Data.Function (on)
 
-import Data.List (nub)
+import Data.List (group, groupBy, sort, sortOn)
 
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO as T
+
+import GHC.Exts (the)
+
+
+
+createFuncList :: ([LiteralType], [Text]) -> Either String Text
+createFuncList (litTypes, funcNames) = 
+    do
+        litNames <- mapM matchType litTypes
+        let
+            listName = T.toLower $ T.concat litNames
+            constraint 
+                | null litNames = "" 
+                | otherwise = "(" <> T.intercalate ", " (map ("HasStackLens w " <>) litNames) <> ") => "
+            retType = "[State w ()]"
+            typeLine = listName <> " :: " <> constraint <> retType
+            defLine = listName <> " = " <> "[" <> T.intercalate ", " funcNames <> "]"
+        return $ T.unlines [typeLine, defLine]
 
 main :: IO ()
 main = 
@@ -22,8 +42,20 @@ main =
         case A.parseOnly parseManyFuncDefs $ file of
             Left err -> print err
             Right funcDefs -> 
-                do
-                    mapM_ (T.putStrLn . generateFuncCode) funcDefs
+                let 
+                    (t, used) = unzip $ map generateFuncCode funcDefs
+                    usedDefs = map fst $ filter snd $ zip funcDefs used
+
+                    -- groupedFuncs: grouped by common set of types (F, FUI, etc..)
+                    groupedFuncs :: [([LiteralType], [Text])]
+                    groupedFuncs = map (first the . unzip) $ groupBy ((==) `on` fst) $ sortOn fst $ zip (map usedTypes usedDefs) $ map funcDefName usedDefs
+                in do
+                    T.putStr $ T.unlines t
+                    either print T.putStr $ T.unlines <$> mapM createFuncList groupedFuncs
+                    --print $ map (first the . unzip) $ groupBy ((==) `on` fst) $ sortOn fst $ zip (map usedTypes usedDefs) $ map funcDefName usedDefs
+
+usedTypes :: FunctionDef -> [LiteralType]
+usedTypes (FunctionDef fretType _fn fargs _comment _originalText) = map the . group $ sort $ fargs ++ [fretType]
 
 data LiteralType = C_Float 
                  | C_Double 
@@ -33,7 +65,7 @@ data LiteralType = C_Float
                  | C_UnsignedLongLongInt 
                  | C_Void
                  | C_Pointer LiteralType
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 data FunctionDef = 
     FunctionDef 
@@ -99,20 +131,20 @@ parseFuncDef = (\(t,p) -> p t) <$> A.match parseFuncDef'
                 A.endOfLine
                 return $ FunctionDef retType funcName args $ T.strip comment
 
-generateFuncCode :: FunctionDef -> Text
+generateFuncCode :: FunctionDef -> (Text, Bool)
 generateFuncCode fdef = 
     case generateFuncCode' fdef of
         Left err -> 
             let 
                 e = "-- | Failed to parse " <> "(" <> T.pack err <> "):" <> "\n"
                 o = T.unlines $ map ("-- | \t" <>) $ T.lines $ funcOriginalText fdef
-            in T.concat [e,"-- |\n", o]
-        Right code -> code
+            in (T.concat [e,"-- |\n", o], False)
+        Right code -> (code, True)
 
 generateFuncCode' :: FunctionDef -> Either String Text
-generateFuncCode' (FunctionDef fretType fn fargs comment _originalText) = 
+generateFuncCode' fdef@(FunctionDef fretType fn fargs comment _originalText) = 
     do
-        argTypes <- mapM matchType $ nub $ fargs ++ [fretType]
+        argTypes <- mapM matchType $ usedTypes fdef
         ia <- convertArgType [fretType]
         oa <- convertArgType fargs
         let
@@ -120,7 +152,7 @@ generateFuncCode' (FunctionDef fretType fn fargs comment _originalText) =
             typeDecl = fn <> " :: " <> typeConstraints <> retType
                 where typeConstraints 
                             | null argTypes = ""
-                            | otherwise = "(" <> T.intercalate ", " (map (\t -> "HasStackLens w " <> t) argTypes) <> ") => "
+                            | otherwise = "(" <> T.intercalate ", " (map ("HasStackLens w " <>) argTypes) <> ") => "
                       retType = "State w ()"
             funcDecl = fn <> " = " <> "opify (" <> op <> ")"
                 where op = "Op False " <> ("\"" <> fn <> "\"") <> " :: Op " <> ia <> " " <> oa
