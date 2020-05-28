@@ -74,7 +74,7 @@ instance HasStack World Integer where
     , multiplyOp integerProxy
     , divOp integerProxy
     , remOp integerProxy
-    , convertTypeOp integerFloatProxy 
+    , fromIntegralOp integerFloatProxy 
     ] where integerProxy = Proxy :: Proxy Integer
             integerFloatProxy = Proxy :: Proxy (Integer,Float)
   stackParseLiteral _ = Just $ textRead $ T.signed T.decimal

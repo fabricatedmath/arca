@@ -14,7 +14,6 @@ import qualified Data.Text.Lazy as T
 
 import TextShow
 
-import Epigenisys.Language.Ops 
 import Epigenisys.Language.Parser (
     LanguageTree(..), StackOp(..), HasWorldParser(..), parseLang, HasStack(..), StackType(..), textRead,
     StackName(..)

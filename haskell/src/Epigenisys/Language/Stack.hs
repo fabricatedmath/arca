@@ -1,16 +1,22 @@
 {-# LANGUAGE DeriveGeneric, DerivingVia #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RankNTypes #-}
 
 module Epigenisys.Language.Stack
   (
     Stack(..), StackLens, HasStackLens(..),
+    HasStackLens'(..),
     popL, pushL, pushListL, empty,
     module Control.Monad.State.Strict
   ) where
 
 import Control.Lens
 import Control.Monad.State.Strict
+
+import Data.Proxy
 
 import GHC.Generics
 
@@ -26,8 +32,16 @@ newtype Stack a =
 
 type StackLens s a = Lens' s (Stack a)
 
+--type StackLens' s f a = StackLens s a
+
 class HasStackLens w a where
   stackLens :: StackLens w a
+
+class HasStackLens' w f a where
+  stackLens' :: Proxy (f a) -> StackLens w a
+
+instance forall w f a. HasStackLens w a => HasStackLens' w f a where
+    stackLens' _ = stackLens :: StackLens w a
 
 empty :: Stack a
 empty = Stack []
