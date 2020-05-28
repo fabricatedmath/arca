@@ -19,7 +19,40 @@ import Data.Text.IO as T
 
 import GHC.Exts (the)
 
+buildFile :: Text -> IO (Either String ())
+buildFile moduleName = 
+    do
+        let filename = T.unpack $ T.toLower moduleName <> ".txt"
+            targetFilename = T.unpack moduleName <> ".hs"
+            moduleHeader = 
+                [ "module " <> moduleName <> " where"
+                , ""
+                , "import Something"
+                , ""
+                , "-- | Exported Lists"
+                , ""
+                ]
+            opsSectionHeader = 
+                [ "-- | Exported Ops"
+                , ""
+                ]
+        file <- T.map (\c -> if c == '\8203' then ' ' else  c) <$> T.readFile filename
+        let etext = 
+                do
+                    funcDefs <- A.parseOnly parseManyFuncDefs $ file
+                    let 
+                        (t, used) = unzip $ map generateFuncCode funcDefs
+                        usedDefs = map fst $ filter snd $ zip funcDefs used
 
+                        -- groupedFuncs: grouped by common set of types (F, FUI, etc..)
+                        groupedFuncs :: [([LiteralType], [Text])]
+                        groupedFuncs = map (first the . unzip) $ groupBy ((==) `on` fst) $ sortOn fst $ zip (map usedTypes usedDefs) $ map funcDefName usedDefs
+                    funcList <- mapM createFuncList groupedFuncs
+                    let fullFile = T.unlines moduleHeader <> T.unlines funcList <> T.unlines opsSectionHeader <> T.unlines t
+                    return fullFile
+        case etext of 
+            Left err -> return $ Left err
+            Right t -> T.writeFile targetFilename t >> return (pure ())
 
 createFuncList :: ([LiteralType], [Text]) -> Either String Text
 createFuncList (litTypes, funcNames) = 
@@ -38,6 +71,8 @@ createFuncList (litTypes, funcNames) =
 main :: IO ()
 main = 
     do
+        buildFile "Cuda" >>= print
+        {-
         file <- T.map (\c -> if c == '\8203' then ' ' else  c) <$> T.readFile "cuda.txt"
         case A.parseOnly parseManyFuncDefs $ file of
             Left err -> print err
@@ -53,6 +88,7 @@ main =
                     T.putStr $ T.unlines t
                     either print T.putStr $ T.unlines <$> mapM createFuncList groupedFuncs
                     --print $ map (first the . unzip) $ groupBy ((==) `on` fst) $ sortOn fst $ zip (map usedTypes usedDefs) $ map funcDefName usedDefs
+                    -}
 
 usedTypes :: FunctionDef -> [LiteralType]
 usedTypes (FunctionDef fretType _fn fargs _comment _originalText) = map the . group $ sort $ fargs ++ [fretType]
