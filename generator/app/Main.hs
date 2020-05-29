@@ -4,7 +4,7 @@ module Main where
 
 import Control.Applicative
 import Control.Arrow 
-import Control.Monad (void)
+import Control.Monad (filterM,void)
 
 import Data.Attoparsec.Text (Parser)
 import qualified Data.Attoparsec.Text as A
@@ -22,16 +22,31 @@ import GHC.Exts (the)
 
 import Language.Haskell.TH
 import System.Directory
+import System.FilePath.Posix
 
-import Paths_epigenisys
-
-buildFile :: Text -> IO (Either String ())
-buildFile moduleName = 
+listDirectories :: FilePath -> IO [FilePath]
+listDirectories dir = 
     do
-        let filename = T.unpack $ T.toLower moduleName <> ".txt"
-            targetFilename = T.unpack moduleName <> ".hs"
+        entries <- map (dir </>) <$> listDirectory dir
+        dirs <- filterM doesDirectoryExist entries
+        files <- filterM doesFileExist entries
+        fps <- concat <$> mapM listDirectories dirs
+        return $ files ++ fps
+        
+    
+
+buildFile :: FilePath -> FilePath -> IO (Either String ())
+buildFile targetDir filepath = 
+    do
+        let
+            splitDirs = splitDirectories filepath
+            relevantDirs = tail splitDirs
+            directoryPath = targetDir </> joinPath (init relevantDirs)
+            moduleName = T.pack $ takeBaseName filepath
+            modulePath = T.intercalate "." $ map T.pack $ init relevantDirs
+            targetFilename = directoryPath </> T.unpack moduleName <> ".hs"
             moduleHeader = 
-                [ "module " <> moduleName <> " where"
+                [ "module " <> modulePath <> "." <> moduleName <> " where"
                 , ""
                 , "import Something"
                 , ""
@@ -42,7 +57,8 @@ buildFile moduleName =
                 [ "-- | Exported Ops"
                 , ""
                 ]
-        file <- T.map (\c -> if c == '\8203' then ' ' else  c) <$> T.readFile filename
+        createDirectoryIfMissing True directoryPath
+        file <- T.map (\c -> if c == '\8203' then ' ' else  c) <$> T.readFile filepath
         let etext = 
                 do
                     funcDefs <- A.parseOnly parseManyFuncDefs $ file
@@ -80,10 +96,13 @@ compiledDirectory = $( stringE =<< (runIO $ getCurrentDirectory) )
 main :: IO ()
 main = 
     do
-        print compiledDirectory
-        sequence [getBinDir, getLibDir, getDynLibDir, getDataDir, getLibexecDir, getSysconfDir] >>= mapM_ print 
+        let targetDir = compiledDirectory </> "../haskell/src"
+        filesToGen <- listDirectories "descriptions"
+        mapM (buildFile targetDir) filesToGen >>= print
+        --print compiledDirectory
+        --sequence [getBinDir, getLibDir, getDynLibDir, getDataDir, getLibexecDir, getSysconfDir] >>= mapM_ print 
 
-        buildFile "Cuda" >>= print
+        --buildFile "Cuda" >>= print
         {-
         file <- T.map (\c -> if c == '\8203' then ' ' else  c) <$> T.readFile "cuda.txt"
         case A.parseOnly parseManyFuncDefs $ file of
