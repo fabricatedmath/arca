@@ -81,7 +81,7 @@ createFuncList (litTypes, funcNames) =
     do
         litNames <- mapM matchType litTypes
         let
-            listName = T.toLower $ T.concat litNames
+            listName = T.toLower $ T.intercalate "_" litNames
             constraint 
                 | null litNames = "" 
                 | otherwise = "(" <> T.intercalate ", " (map ("HasStackLens w " <>) litNames) <> ") => "
@@ -99,27 +99,6 @@ main =
         let targetDir = compiledDirectory </> "../haskell/src"
         filesToGen <- listDirectories "descriptions"
         mapM (buildFile targetDir) filesToGen >>= print
-        --print compiledDirectory
-        --sequence [getBinDir, getLibDir, getDynLibDir, getDataDir, getLibexecDir, getSysconfDir] >>= mapM_ print 
-
-        --buildFile "Cuda" >>= print
-        {-
-        file <- T.map (\c -> if c == '\8203' then ' ' else  c) <$> T.readFile "cuda.txt"
-        case A.parseOnly parseManyFuncDefs $ file of
-            Left err -> print err
-            Right funcDefs -> 
-                let 
-                    (t, used) = unzip $ map generateFuncCode funcDefs
-                    usedDefs = map fst $ filter snd $ zip funcDefs used
-
-                    -- groupedFuncs: grouped by common set of types (F, FUI, etc..)
-                    groupedFuncs :: [([LiteralType], [Text])]
-                    groupedFuncs = map (first the . unzip) $ groupBy ((==) `on` fst) $ sortOn fst $ zip (map usedTypes usedDefs) $ map funcDefName usedDefs
-                in do
-                    T.putStr $ T.unlines t
-                    either print T.putStr $ T.unlines <$> mapM createFuncList groupedFuncs
-                    --print $ map (first the . unzip) $ groupBy ((==) `on` fst) $ sortOn fst $ zip (map usedTypes usedDefs) $ map funcDefName usedDefs
-                    -}
 
 usedTypes :: FunctionDef -> [LiteralType]
 usedTypes (FunctionDef fretType _fn fargs _comment _originalText) = map the . group $ sort $ fargs ++ [fretType]
@@ -128,9 +107,11 @@ data LiteralType = C_Float
                  | C_Double 
                  | C_Int 
                  | C_UnsignedInt 
+                 | C_LongInt
                  | C_LongLongInt 
                  | C_UnsignedLongLongInt 
                  | C_Void
+                 | C_ConstChar
                  | C_Pointer LiteralType
     deriving (Eq, Ord, Show)
 
@@ -160,19 +141,22 @@ parseLiteralType :: Parser LiteralType
 parseLiteralType =  "int" *> pure C_Int
                 <|> "unsigned int" *> pure C_UnsignedInt 
                 <|> "long long int" *> pure C_LongLongInt 
+                <|> "long int" *> pure C_LongInt
                 <|> "unsigned long long int" *> pure C_UnsignedLongLongInt 
-                <|> "float" *> pure C_Float 
+                <|> "float" *> pure C_Float
+                <|> "const float" *> pure C_Float
                 <|> "double" *> pure C_Double 
                 <|> "void" *> pure C_Void
                 <|> "__RETURN_TYPE" *> pure C_Int
+                <|> "const char" *> pure C_ConstChar
 
 parseArgument :: Parser (LiteralType, Text)
 parseArgument = 
     do
         A.skipMany1 A.space
         lit <- parseLiteralTypeOptionPointer
-        A.skipMany1 A.space
-        argName <- A.takeTill (\c -> c == ',' || isSpace c)
+        A.skipMany A.space
+        argName <- A.takeTill (\c -> c == ',' || isSpace c || c == ')')
         return (lit, argName)
 
 parseFuncDef :: Parser FunctionDef
@@ -190,7 +174,7 @@ parseFuncDef = (\(t,p) -> p t) <$> A.match parseFuncDef'
                 A.skipMany1 A.space
                 void $ A.char '('
                 args <- map fst <$> A.sepBy parseArgument (A.char ',')
-                A.skipMany1 A.space
+                A.skipMany A.space
                 void $ A.char ')'
                 void $ A.takeTill A.isEndOfLine
                 A.endOfLine
@@ -232,10 +216,12 @@ matchType l =
         C_Double -> pure "D"
         C_Int -> pure "I"
         C_UnsignedInt -> pure "UI"
+        C_LongInt -> pure "LI"
         C_LongLongInt -> pure "L"
         C_UnsignedLongLongInt -> pure "UL"
         C_Void -> Left "Has Void Type"
         C_Pointer _ -> Left "Has Pointer Type"
+        C_ConstChar -> Left "Has Const Char"
 
 convertArgType :: [LiteralType] -> Either String Text
 convertArgType ts = 
@@ -247,4 +233,5 @@ convertArgType ts =
         argType' [a] = pure $ "OneArg " <> a
         argType' [a,b] = pure $ "TwoArg " <> a <> " " <> b
         argType' [a,b,c] = pure $ "ThreeArg " <> a <> " " <> b <> " " <> c
+        argType' [a,b,c,d] = pure $ "FourArg " <> a <> " " <> b <> " " <> c <> " " <> d
         argType' as = Left $ "too many args: " ++ show as 

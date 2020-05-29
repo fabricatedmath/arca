@@ -5,7 +5,7 @@ import Something
 -- | Exported Lists
 
 f :: (HasStackLens w F) => [State w ()]
-f = [__cosf, __exp10f, __expf, __fadd_rd, __fadd_rn, __fadd_ru, __fadd_rz, __fdiv_rd, __fdiv_rn, __fdiv_ru, __fdiv_rz, __fdividef, __fmaf_rd, __fmaf_rn, __fmaf_ru, __fmaf_rz, __fmul_rd, __fmul_rn, __fmul_ru, __fmul_rz, __frcp_rd, __frcp_rn, __frcp_ru, __frcp_rz, __frsqrt_rn, __fsqrt_rd, __fsqrt_rn, __fsqrt_ru, __fsqrt_rz, __fsub_rd, __fsub_rn, __fsub_ru, __fsub_rz, __log10f, __log2f, __logf, __powf, __saturatef, __sinf]
+f = [__cosf, __exp10f, __expf, __fadd_rd, __fadd_rn, __fadd_ru, __fadd_rz, __fdiv_rd, __fdiv_rn, __fdiv_ru, __fdiv_rz, __fdividef, __fmaf_rd, __fmaf_rn, __fmaf_ru, __fmaf_rz, __fmul_rd, __fmul_rn, __fmul_ru, __fmul_rz, __frcp_rd, __frcp_rn, __frcp_ru, __frcp_rz, __frsqrt_rn, __fsqrt_rd, __fsqrt_rn, __fsqrt_ru, __fsqrt_rz, __fsub_rd, __fsub_rn, __fsub_ru, __fsub_rz, __log10f, __log2f, __logf, __powf, __saturatef, __sinf, __tanf]
 
 -- | Exported Ops
 
@@ -169,4 +169,8 @@ __saturatef = opify (Op False "__saturatef" :: Op (OneArg F) (OneArg F))
 -- | Calculate the fast approximate sine of the input argument.
 __sinf :: (HasStackLens w F) => State w ()
 __sinf = opify (Op False "__sinf" :: Op (OneArg F) (OneArg F))
+
+-- | Calculate the fast approximate tangent of the input argument.
+__tanf :: (HasStackLens w F) => State w ()
+__tanf = opify (Op False "__tanf" :: Op (OneArg F) (OneArg F))
 
