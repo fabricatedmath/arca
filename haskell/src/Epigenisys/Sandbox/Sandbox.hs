@@ -32,10 +32,28 @@ data AST o where
         , astLeftOp :: AST l
         , astRightOp :: AST r
         } -> AST o
+    TrinaryExpression :: -- HasConstraint a => 
+        { astOpId :: Int
+        , astIsInfix :: Bool
+        , astFuncName :: Text
+        , astOp1 :: AST o1
+        , astOp2 :: AST o2
+        , astOp3 :: AST o3
+        } -> AST o
+    QuadrinaryExpression :: -- HasConstraint a => 
+        { astOpId :: Int
+        , astIsInfix :: Bool
+        , astFuncName :: Text
+        , astOp1 :: AST o1
+        , astOp2 :: AST o2
+        , astOp3 :: AST o3
+        , astOp4 :: AST o4
+        } -> AST o
 
 data OneArg a = OneArg a
 data TwoArg a b = TwoArg a b
-data ThreeArg a b = ThreeArg a b
+data ThreeArg a b c = ThreeArg a b c
+data FourArg a b c d = FourArg a b c d
 
 data C_UnsignedInt
 data C_Int
@@ -46,6 +64,8 @@ data C_UnsignedLongLongInt
 data C_Float
 data C_Double
 
+data C_LongInt
+
 type D = AST C_Double
 type F = AST C_Float
 
@@ -53,9 +73,11 @@ type I = AST C_Int
 type UI = AST C_UnsignedInt
 type L = AST C_LongLongInt
 type UL = AST C_UnsignedLongLongInt
+type LI = AST C_LongInt
 
 data Pointer a = Pointer a
 
+{-
 __fmad :: (HasIdentifier w, HasStackLens w F) => State w ()
 __fmad = opify op 
     where op = prefixOp "__fmad" :: Op (TwoArg F F) (OneArg F)
@@ -63,6 +85,8 @@ __fmad = opify op
 __double2float_rz :: (HasIdentifier w, HasStackLens w F, HasStackLens w D) => State w ()
 __double2float_rz = opify op 
     where op = prefixOp "__double2float_rz" :: Op (OneArg D) (OneArg F)
+
+-}
 
 data Op i o = 
     Op 
@@ -86,6 +110,12 @@ instance ToExpression (OneArg (AST a)) where
 
 instance ToExpression (TwoArg (AST a) (AST b)) where
     toExpression i isInfix t (TwoArg a b) = BinaryExpression i isInfix t a b
+
+instance ToExpression (ThreeArg (AST a) (AST b) (AST c)) where
+    toExpression i isInfix t (ThreeArg a b c) = TrinaryExpression i isInfix t a b c
+
+instance ToExpression (FourArg (AST a) (AST b) (AST c) (AST d)) where
+    toExpression i isInfix t (FourArg a b c d) = QuadrinaryExpression i isInfix t a b c d
 
 {- Opify -}
 
@@ -142,3 +172,25 @@ instance forall w a b. (HasStackLens w a, HasStackLens w b) => OpIn w (TwoArg a 
             when (isNothing m) $ put w
             pure m
 
+instance forall w a b c. (HasStackLens w a, HasStackLens w b, HasStackLens w c) => OpIn w (ThreeArg a b c) where
+    opin _ = 
+        do
+            w <- get
+            ma <- popL stackLens :: State w (Maybe a)
+            mb <- popL stackLens :: State w (Maybe b)
+            mc <- popL stackLens :: State w (Maybe c)
+            let m = ThreeArg <$> ma <*> mb <*> mc
+            when (isNothing m) $ put w
+            pure m
+
+instance forall w a b c d. (HasStackLens w a, HasStackLens w b, HasStackLens w c, HasStackLens w d) => OpIn w (FourArg a b c d) where
+    opin _ = 
+        do
+            w <- get
+            ma <- popL stackLens :: State w (Maybe a)
+            mb <- popL stackLens :: State w (Maybe b)
+            mc <- popL stackLens :: State w (Maybe c)
+            md <- popL stackLens :: State w (Maybe d)
+            let m = FourArg <$> ma <*> mb <*> mc <*> md
+            when (isNothing m) $ put w
+            pure m

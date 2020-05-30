@@ -80,4 +80,3 @@ __device__ ​ float __sinf ( float  x )
     Calculate the fast approximate sine of the input argument. 
 __device__ ​ float __tanf ( float  x )
     Calculate the fast approximate tangent of the input argument. 
-    

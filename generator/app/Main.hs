@@ -46,9 +46,12 @@ buildFile targetDir filepath =
             modulePath = T.intercalate "." $ map T.pack $ init relevantDirs
             targetFilename = directoryPath </> T.unpack moduleName <> ".hs"
             moduleHeader = 
-                [ "module " <> modulePath <> "." <> moduleName <> " where"
+                [ "{-# LANGUAGE FlexibleContexts #-}"
+                , "{-# LANGUAGE OverloadedStrings #-}"
+                , "module " <> modulePath <> "." <> moduleName <> " where"
                 , ""
-                , "import Something"
+                , "import Epigenisys.Sandbox.Sandbox"
+                , "import Epigenisys.Language.Stack"
                 , ""
                 , "-- | Exported Lists"
                 , ""
@@ -84,7 +87,7 @@ createFuncList (litTypes, funcNames) =
             listName = T.toLower $ T.intercalate "_" litNames
             constraint 
                 | null litNames = "" 
-                | otherwise = "(" <> T.intercalate ", " (map ("HasStackLens w " <>) litNames) <> ") => "
+                | otherwise = "(HasIdentifier w, " <> T.intercalate ", " (map ("HasStackLens w " <>) litNames) <> ") => "
             retType = "[State w ()]"
             typeLine = listName <> " :: " <> constraint <> retType
             defLine = listName <> " = " <> "[" <> T.intercalate ", " funcNames <> "]"
@@ -129,6 +132,7 @@ parseManyFuncDefs =
     do
         funcDefs <- A.many1 parseFuncDef
         void $ A.skipMany (void A.space <|> A.endOfLine)
+        A.endOfInput
         return funcDefs
 
 parseLiteralTypeOptionPointer :: Parser LiteralType
@@ -196,14 +200,14 @@ generateFuncCode' :: FunctionDef -> Either String Text
 generateFuncCode' fdef@(FunctionDef fretType fn fargs comment _originalText) = 
     do
         argTypes <- mapM matchType $ usedTypes fdef
-        ia <- convertArgType [fretType]
-        oa <- convertArgType fargs
+        ia <- convertArgType fargs
+        oa <- convertArgType [fretType]
         let
             commentLine = "-- | " <> comment
             typeDecl = fn <> " :: " <> typeConstraints <> retType
                 where typeConstraints 
                             | null argTypes = ""
-                            | otherwise = "(" <> T.intercalate ", " (map ("HasStackLens w " <>) argTypes) <> ") => "
+                            | otherwise = "(HasIdentifier w, " <> T.intercalate ", " (map ("HasStackLens w " <>) argTypes) <> ") => "
                       retType = "State w ()"
             funcDecl = fn <> " = " <> "opify (" <> op <> ")"
                 where op = "Op False " <> ("\"" <> fn <> "\"") <> " :: Op " <> ia <> " " <> oa
