@@ -1,3 +1,4 @@
+{-# LANGUAGE EmptyDataDeriving #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
@@ -10,8 +11,10 @@
 module Epigenisys.Sandbox.Sandbox where
 
 import Data.Maybe (isNothing)
-import Data.Proxy (Proxy(..))
+--import Data.Proxy (Proxy(..))
 import Data.Text (Text)
+import qualified Data.Text as T
+import Data.Typeable
 
 import Epigenisys.Language.Stack
 
@@ -20,29 +23,27 @@ class HasIdentifier w where
 
 data AST o where
     Literal :: o -> AST o
-    UnaryExpression :: 
+    UnaryExpression :: (Show o1, Typeable o1) => 
         { astOpId :: Int
         , astFuncName :: Text
-        , astOperand :: AST b
-        } ->  AST o
-    BinaryExpression :: -- HasConstraint a => 
-        { astOpId :: Int
-        , astIsInfix :: Bool
-        , astFuncName :: Text
-        , astLeftOp :: AST l
-        , astRightOp :: AST r
+        , astOperand :: AST o1
         } -> AST o
-    TrinaryExpression :: -- HasConstraint a => 
+    BinaryExpression :: (Show o1, Typeable o1, Show o2, Typeable o2) =>
         { astOpId :: Int
         , astIsInfix :: Bool
+        , astFuncName :: Text
+        , astLeftOp :: AST o1
+        , astRightOp :: AST o2
+        } -> AST o
+    TrinaryExpression :: (Show o1, Typeable o1, Show o2, Typeable o2, Show o3, Typeable o3) => 
+        { astOpId :: Int
         , astFuncName :: Text
         , astOp1 :: AST o1
         , astOp2 :: AST o2
         , astOp3 :: AST o3
         } -> AST o
-    QuadrinaryExpression :: -- HasConstraint a => 
+    QuadrinaryExpression :: (Show o1, Typeable o1, Show o2, Typeable o2, Show o3, Typeable o3, Show o4, Typeable o4) => 
         { astOpId :: Int
-        , astIsInfix :: Bool
         , astFuncName :: Text
         , astOp1 :: AST o1
         , astOp2 :: AST o2
@@ -50,21 +51,37 @@ data AST o where
         , astOp4 :: AST o4
         } -> AST o
 
+instance (Show o, Typeable o) => Show (AST o) where
+    show (Literal o) = 
+        "Literal(" <> show o <> " :: " ++ show (typeOf o) ++ ")"
+
+    show e@(UnaryExpression _ident name o) = 
+        T.unpack name <> "( " <> show o <> " )" <> " :: " <> show (typeRep e)
+
+    show e@(BinaryExpression _ident _isInfix name o1 o2) = 
+        T.unpack name <> "( " <> show o1 <> ", " <> show o2 <> " )" <> " :: " <> show (typeRep e)
+
+    show e@(TrinaryExpression _ident name o1 o2 o3) = 
+        T.unpack name <> "( " <> show o1 <> ", " <> show o2 <> ", " <> show o3 <> " )" <> " :: " <> show (typeRep e)
+
+    show e@(QuadrinaryExpression _ident name o1 o2 o3 o4) = 
+        T.unpack name <> "( " <> show o1 <> ", " <> show o2 <> ", " <> show o3 <> ", " <> show o4 <> " )" <> " :: " <> show (typeRep e)
+
 data OneArg a = OneArg a
 data TwoArg a b = TwoArg a b
 data ThreeArg a b c = ThreeArg a b c
 data FourArg a b c d = FourArg a b c d
 
-data C_UnsignedInt
-data C_Int
+data C_UnsignedInt deriving Show
+data C_Int deriving Show
 
-data C_LongLongInt
-data C_UnsignedLongLongInt
+data C_LongLongInt deriving Show
+data C_UnsignedLongLongInt deriving Show
 
-data C_Float
-data C_Double
+data C_Float deriving Show
+data C_Double deriving Show
 
-data C_LongInt
+data C_LongInt deriving Show
 
 type D = AST C_Double
 type F = AST C_Float
@@ -105,17 +122,17 @@ prefixOp = Op False
 class ToExpression a where
     toExpression :: Int -> Bool -> Text -> a -> AST o
 
-instance ToExpression (OneArg (AST a)) where
+instance (Show o1, Typeable o1) => ToExpression (OneArg (AST o1)) where
     toExpression i _ t (OneArg a) = UnaryExpression i t a
 
-instance ToExpression (TwoArg (AST a) (AST b)) where
+instance (Show o1, Typeable o1, Show o2, Typeable o2) => ToExpression (TwoArg (AST o1) (AST o2)) where
     toExpression i isInfix t (TwoArg a b) = BinaryExpression i isInfix t a b
 
-instance ToExpression (ThreeArg (AST a) (AST b) (AST c)) where
-    toExpression i isInfix t (ThreeArg a b c) = TrinaryExpression i isInfix t a b c
+instance (Show o1, Typeable o1, Show o2, Typeable o2, Show o3, Typeable o3) => ToExpression (ThreeArg (AST o1) (AST o2) (AST o3)) where
+    toExpression i _isInfix t (ThreeArg a b c) = TrinaryExpression i t a b c
 
-instance ToExpression (FourArg (AST a) (AST b) (AST c) (AST d)) where
-    toExpression i isInfix t (FourArg a b c d) = QuadrinaryExpression i isInfix t a b c d
+instance (Show o1, Typeable o1, Show o2, Typeable o2, Show o3, Typeable o3, Show o4, Typeable o4) => ToExpression (FourArg (AST o1) (AST o2) (AST o3) (AST o4)) where
+    toExpression i _isInfix t (FourArg a b c d) = QuadrinaryExpression i t a b c d
 
 {- Opify -}
 

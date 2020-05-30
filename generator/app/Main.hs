@@ -48,6 +48,7 @@ buildFile targetDir filepath =
             moduleHeader = 
                 [ "{-# LANGUAGE FlexibleContexts #-}"
                 , "{-# LANGUAGE OverloadedStrings #-}"
+                , ""
                 , "module " <> modulePath <> "." <> moduleName <> " where"
                 , ""
                 , "import Epigenisys.Sandbox.Sandbox"

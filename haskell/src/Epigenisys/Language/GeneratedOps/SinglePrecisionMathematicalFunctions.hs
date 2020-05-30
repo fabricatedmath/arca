@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
+
 module Epigenisys.Language.GeneratedOps.SinglePrecisionMathematicalFunctions where
 
 import Epigenisys.Sandbox.Sandbox

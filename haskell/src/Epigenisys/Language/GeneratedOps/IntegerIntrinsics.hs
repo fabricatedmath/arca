@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
+
 module Epigenisys.Language.GeneratedOps.IntegerIntrinsics where
 
 import Epigenisys.Sandbox.Sandbox
