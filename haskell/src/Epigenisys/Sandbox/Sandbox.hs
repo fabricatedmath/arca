@@ -1,20 +1,35 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE EmptyDataDeriving #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
--- {-# LANGUAGE TypeFamilies #-}
 
 module Epigenisys.Sandbox.Sandbox where
 
+import Control.Monad.RWS.Strict
+
 import Data.Maybe (isNothing)
---import Data.Proxy (Proxy(..))
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Typeable
+import Data.Proxy (Proxy(..))
+
+import Data.Int
+import Data.Word
+
+import GHC.Generics
+
+import TextShow
+import TextShow.Generic
 
 import Epigenisys.Language.Stack
 
@@ -22,27 +37,28 @@ class HasIdentifier w where
     getIdentifier :: State w Int
 
 data AST o where
-    Literal :: o -> AST o
-    UnaryExpression :: (Show o1, Typeable o1) => 
+    Literal :: Int -> o -> AST o
+    Variable :: Text -> AST o
+    UnaryExpression :: (C_Type o1, Show o1, TextShow o1, Typeable o1) => 
         { astOpId :: Int
         , astFuncName :: Text
         , astOperand :: AST o1
         } -> AST o
-    BinaryExpression :: (Show o1, Typeable o1, Show o2, Typeable o2) =>
+    BinaryExpression :: (C_Type o1, Show o1, TextShow o1, Typeable o1, C_Type o2, Show o2, TextShow o2, Typeable o2) =>
         { astOpId :: Int
         , astIsInfix :: Bool
         , astFuncName :: Text
         , astLeftOp :: AST o1
         , astRightOp :: AST o2
         } -> AST o
-    TrinaryExpression :: (Show o1, Typeable o1, Show o2, Typeable o2, Show o3, Typeable o3) => 
+    TrinaryExpression :: (C_Type o1, Show o1, TextShow o1, Typeable o1, C_Type o2, Show o2, TextShow o2, Typeable o2, C_Type o3, Show o3, TextShow o3, Typeable o3) => 
         { astOpId :: Int
         , astFuncName :: Text
         , astOp1 :: AST o1
         , astOp2 :: AST o2
         , astOp3 :: AST o3
         } -> AST o
-    QuadrinaryExpression :: (Show o1, Typeable o1, Show o2, Typeable o2, Show o3, Typeable o3, Show o4, Typeable o4) => 
+    QuadrinaryExpression :: (C_Type o1, Show o1, TextShow o1, Typeable o1, C_Type o2, Show o2, TextShow o2, Typeable o2, C_Type o3, Show o3, TextShow o3, Typeable o3, C_Type o4, Show o4, TextShow o4, Typeable o4) => 
         { astOpId :: Int
         , astFuncName :: Text
         , astOp1 :: AST o1
@@ -52,36 +68,190 @@ data AST o where
         } -> AST o
 
 instance (Show o, Typeable o) => Show (AST o) where
-    show (Literal o) = 
-        "Literal(" <> show o <> " :: " ++ show (typeOf o) ++ ")"
-
+    show (Literal _ident o) = 
+        "Literal(" <> show o <> " :: " <> show (typeOf o) <> ")"
+    show v@(Variable s) = 
+       "Variable(" <> T.unpack s <> " :: " <> show (typeRep v) <> ")"
     show e@(UnaryExpression _ident name o) = 
         T.unpack name <> "( " <> show o <> " )" <> " :: " <> show (typeRep e)
-
     show e@(BinaryExpression _ident _isInfix name o1 o2) = 
         T.unpack name <> "( " <> show o1 <> ", " <> show o2 <> " )" <> " :: " <> show (typeRep e)
-
     show e@(TrinaryExpression _ident name o1 o2 o3) = 
         T.unpack name <> "( " <> show o1 <> ", " <> show o2 <> ", " <> show o3 <> " )" <> " :: " <> show (typeRep e)
-
     show e@(QuadrinaryExpression _ident name o1 o2 o3 o4) = 
         T.unpack name <> "( " <> show o1 <> ", " <> show o2 <> ", " <> show o3 <> ", " <> show o4 <> " )" <> " :: " <> show (typeRep e)
+
+drawASTString :: (Show o, Typeable o) => AST o -> String
+drawASTString = unlines . draw
+    where
+        drawSubTrees [] = []
+        drawSubTrees [t] = 
+            "|" : shift "`- " "   " (draw t)
+        drawSubTrees (t:ts) =
+            "|" : shift "+- " "|  " (draw t) ++ drawSubTrees ts
+
+        shift first other = zipWith (++) (first : repeat other)
+
+        draw :: (Show o, Typeable o) => AST o -> [String]
+        draw (Literal n o) = 
+            lines $ "Literal" <> " - " <> show n <> " - " <> "(" <> show o <> ") :: " <> show (typeOf o)
+        draw v@(Variable s) = 
+            lines $ "Variable(" <> show s <> ") :: " <> show (typeOf v)
+        draw e@(UnaryExpression n name o1) = 
+            lines ("UnaryExpression" <> " - " <> show n <> " - " <> show name <> " :: " <> show (typeRep o1) <> " -> " <> show (typeRep e)) 
+            <> drawSubTrees [o1]
+        draw e@(BinaryExpression n _isInfix name o1 o2) = 
+            lines ("BinaryExpression" <> " - " <> show n <> " - " <> show name <> " :: " <> show (typeRep o1) <> " -> " <> show (typeRep o2) <> " -> " <> show (typeRep e)) 
+            <> drawSubTrees [o1] <> drawSubTrees [o2]
+        draw e@(TrinaryExpression n name o1 o2 o3) = 
+            lines ("TrinaryExpression" <> " - " <> show n <> " - " <> show name <> " :: " <> show (typeRep o1) <> " -> " <> show (typeRep o2) <> " -> " <> show (typeRep o3) <> " -> " <> show (typeRep e)) 
+            <> drawSubTrees [o1] <> drawSubTrees [o2] <> drawSubTrees [o3]
+        draw e@(QuadrinaryExpression n name o1 o2 o3 o4) = 
+            lines ("QuadrinaryExpression" <> " - " <> show n <> " - " <> show name <> " :: " <> show (typeRep o1) <> " -> " <> show (typeRep o2) <> " -> " <> show (typeRep o3) <> " -> " <> show (typeRep o4) <> " -> " <> show (typeRep e)) 
+            <> drawSubTrees [o1] <> drawSubTrees [o2] <> drawSubTrees [o3] <> drawSubTrees [o4]
+
+type CompileMonad a = RWS () [Text] IntSet a
+
+compile :: (C_Type o, TextShow o, Typeable o) => AST o -> Text
+compile ast = T.unlines $ map (`T.append` ";") $ snd $ evalRWS (compile' ast) () S.empty
+    where 
+        gvn :: Int -> Text
+        gvn n = "a" <> showt n
+
+        checkAndCheck :: MonadState IntSet m => Int -> m Bool
+        checkAndCheck i = 
+            do
+                s <- get
+                put $ S.insert i s
+                pure $ S.member i s
+
+        compile' :: (C_Type o, TextShow o, Typeable o) => AST o -> CompileMonad Text
+        compile' (Literal i o) = 
+            do
+                b <- checkAndCheck i
+                let var = gvn i
+                unless b $ tell $ pure $ ctype o <> " " <> var <> " = " <> cval o
+                pure var
+        compile' (Variable s) = pure s
+        compile' e@(UnaryExpression i name o) = 
+            do
+                b <- checkAndCheck i
+                let var = gvn i
+                unless b $ 
+                    do
+                        ovar <- compile' o
+                        let lhs = ctypep e <> " " <> var <> " = "
+                            rhs = name <> "(" <> ovar <> ")"
+                        tell $ pure $ lhs <> rhs
+                pure var
+        compile' e@(BinaryExpression i isInfix name o1 o2) = 
+            do
+                b <- checkAndCheck i
+                let var = gvn i
+                unless b $ 
+                    do
+                        ovar1 <- compile' o1
+                        ovar2 <- compile' o2
+                        let lhs = ctypep e <> " " <> var <> " = "
+                            rhs | isInfix = ovar1 <> " " <> name <> " " <> ovar2
+                                | otherwise = name <> "(" <> ovar1 <> ", " <> ovar2 <> ")"
+                        tell $ pure $ lhs <> rhs
+                pure var
+        compile' e@(TrinaryExpression i name o1 o2 o3) = 
+            do
+                b <- checkAndCheck i
+                let var = gvn i
+                unless b $ 
+                    do
+                        ovar1 <- compile' o1
+                        ovar2 <- compile' o2
+                        ovar3 <- compile' o3
+                        let lhs = ctypep e <> " " <> var <> " = "
+                            rhs = name <> "(" <> ovar1 <> ", " <> ovar2 <> ", " <> ovar3 <> ")"
+                        tell $ pure $ lhs <> rhs
+                pure var
+        compile' e@(QuadrinaryExpression i name o1 o2 o3 o4) = 
+            do
+                b <- checkAndCheck i
+                let var = gvn i
+                unless b $ 
+                    do
+                        ovar1 <- compile' o1
+                        ovar2 <- compile' o2
+                        ovar3 <- compile' o3
+                        ovar4 <- compile' o4
+                        let lhs = ctypep e <> " " <> var <> " = "
+                            rhs = name <> "(" <> ovar1 <> ", " <> ovar2 <> ", " <> ovar3 <> ", " <> ovar4 <> ")"
+                        tell $ pure $ lhs <> rhs
+                pure var
 
 data OneArg a = OneArg a
 data TwoArg a b = TwoArg a b
 data ThreeArg a b c = ThreeArg a b c
 data FourArg a b c d = FourArg a b c d
 
-data C_UnsignedInt deriving Show
-data C_Int deriving Show
+ctype :: C_Type a => a -> Text
+ctype = ctypep . Just
 
-data C_LongLongInt deriving Show
-data C_UnsignedLongLongInt deriving Show
+class C_Type a where
+    ctypep :: proxy a -> Text
+    cval :: a -> Text
 
-data C_Float deriving Show
-data C_Double deriving Show
+newtype C_UnsignedInt = C_UnsignedInt Word32
+    deriving (Generic, Num, Show)
+    deriving TextShow via FromGeneric C_UnsignedInt
 
-data C_LongInt deriving Show
+instance C_Type C_UnsignedInt where
+    ctypep _ = "unsigned int"
+    cval (C_UnsignedInt a) = showt a
+
+newtype C_Int = C_Int Int32
+    deriving (Generic, Num, Show)
+    deriving TextShow via FromGeneric C_Int
+
+instance C_Type C_Int where
+    ctypep _ = "int"
+    cval (C_Int a) = showt a
+
+newtype C_LongInt = C_LongInt Int64
+    deriving (Generic, Num, Show)
+    deriving TextShow via FromGeneric C_LongInt
+
+instance C_Type C_LongInt where
+    ctypep _ = "long int"
+    cval (C_LongInt a) = showt a
+
+newtype C_LongLongInt = C_LongLongInt Int64
+    deriving (Generic, Num, Show)
+    deriving TextShow via FromGeneric C_LongLongInt
+
+instance C_Type C_LongLongInt where
+    ctypep _ = "long long int"
+    cval (C_LongLongInt a) = showt a
+
+newtype C_UnsignedLongLongInt = C_UnsignedLongLongInt Word64
+    deriving (Generic, Num, Show)
+    deriving TextShow via FromGeneric C_UnsignedLongLongInt
+
+instance C_Type C_UnsignedLongLongInt where
+    ctypep _ = "unsigned long long int"
+    cval (C_UnsignedLongLongInt a) = showt a
+
+newtype C_Float = C_Float Float
+    deriving (Fractional, Generic, Num, Show)
+    deriving TextShow via FromGeneric C_Float
+
+instance C_Type C_Float where
+    ctypep _ = "float"
+    cval (C_Float a) = showt a
+
+newtype C_Double = C_Double Double
+    deriving (Fractional, Generic, Num, Show)
+    deriving TextShow via FromGeneric C_Double
+
+instance C_Type C_Double where
+    ctypep _ = "double"
+    cval (C_Double a) = showt a
 
 type D = AST C_Double
 type F = AST C_Float
@@ -91,19 +261,6 @@ type UI = AST C_UnsignedInt
 type L = AST C_LongLongInt
 type UL = AST C_UnsignedLongLongInt
 type LI = AST C_LongInt
-
-data Pointer a = Pointer a
-
-{-
-__fmad :: (HasIdentifier w, HasStackLens w F) => State w ()
-__fmad = opify op 
-    where op = prefixOp "__fmad" :: Op (TwoArg F F) (OneArg F)
-    
-__double2float_rz :: (HasIdentifier w, HasStackLens w F, HasStackLens w D) => State w ()
-__double2float_rz = opify op 
-    where op = prefixOp "__double2float_rz" :: Op (OneArg D) (OneArg F)
-
--}
 
 data Op i o = 
     Op 
@@ -122,16 +279,16 @@ prefixOp = Op False
 class ToExpression a where
     toExpression :: Int -> Bool -> Text -> a -> AST o
 
-instance (Show o1, Typeable o1) => ToExpression (OneArg (AST o1)) where
+instance (C_Type o1, Show o1, TextShow o1, Typeable o1) => ToExpression (OneArg (AST o1)) where
     toExpression i _ t (OneArg a) = UnaryExpression i t a
 
-instance (Show o1, Typeable o1, Show o2, Typeable o2) => ToExpression (TwoArg (AST o1) (AST o2)) where
+instance (C_Type o1, Show o1, TextShow o1, Typeable o1, C_Type o2, Show o2, TextShow o2, Typeable o2) => ToExpression (TwoArg (AST o1) (AST o2)) where
     toExpression i isInfix t (TwoArg a b) = BinaryExpression i isInfix t a b
 
-instance (Show o1, Typeable o1, Show o2, Typeable o2, Show o3, Typeable o3) => ToExpression (ThreeArg (AST o1) (AST o2) (AST o3)) where
+instance (C_Type o1, Show o1, TextShow o1, Typeable o1, C_Type o2, Show o2, TextShow o2, Typeable o2, C_Type o3, Show o3, TextShow o3, Typeable o3) => ToExpression (ThreeArg (AST o1) (AST o2) (AST o3)) where
     toExpression i _isInfix t (ThreeArg a b c) = TrinaryExpression i t a b c
 
-instance (Show o1, Typeable o1, Show o2, Typeable o2, Show o3, Typeable o3, Show o4, Typeable o4) => ToExpression (FourArg (AST o1) (AST o2) (AST o3) (AST o4)) where
+instance (C_Type o1, Show o1, TextShow o1, Typeable o1, C_Type o2, Show o2, TextShow o2, Typeable o2, C_Type o3, Show o3, TextShow o3, Typeable o3, C_Type o4, Show o4, TextShow o4, Typeable o4) => ToExpression (FourArg (AST o1) (AST o2) (AST o3) (AST o4)) where
     toExpression i _isInfix t (FourArg a b c d) = QuadrinaryExpression i t a b c d
 
 {- Opify -}
