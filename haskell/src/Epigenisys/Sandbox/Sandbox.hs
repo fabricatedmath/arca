@@ -21,7 +21,6 @@ import qualified Data.IntSet as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Typeable
-import Data.Proxy (Proxy(..))
 
 import Data.Int
 import Data.Word

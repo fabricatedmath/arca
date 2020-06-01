@@ -2,8 +2,6 @@
 
 module Main where
 
-import Control.Monad.State.Strict
-
 import Epigenisys.Language.Parser (drawLanguageTree, WorldParserMap, parseText, worldParser, opify, printWorldStackOps)
 import Epigenisys.Worlds.SimpleWorld
 import Epigenisys.Sandbox.Sandbox
