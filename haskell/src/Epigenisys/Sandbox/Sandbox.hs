@@ -15,6 +15,7 @@ module Epigenisys.Sandbox.Sandbox where
 
 import Control.Monad.RWS.Strict
 
+import Data.List (intercalate)
 import Data.Maybe (isNothing)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as S
@@ -38,26 +39,40 @@ class HasIdentifier w where
 data AST o where
     Literal :: Int -> o -> AST o
     Variable :: Text -> AST o
-    UnaryExpression :: (C_Type o1, Show o1, TextShow o1, Typeable o1) => 
+    UnaryExpression :: 
+        ( C_Type o1, Show o1, TextShow o1, Typeable o1
+        ) => 
         { astOpId :: Int
         , astFuncName :: Text
         , astOperand :: AST o1
         } -> AST o
-    BinaryExpression :: (C_Type o1, Show o1, TextShow o1, Typeable o1, C_Type o2, Show o2, TextShow o2, Typeable o2) =>
+    BinaryExpression :: 
+        ( C_Type o1, Show o1, TextShow o1, Typeable o1
+        , C_Type o2, Show o2, TextShow o2, Typeable o2
+        ) =>
         { astOpId :: Int
         , astIsInfix :: Bool
         , astFuncName :: Text
         , astLeftOp :: AST o1
         , astRightOp :: AST o2
         } -> AST o
-    TrinaryExpression :: (C_Type o1, Show o1, TextShow o1, Typeable o1, C_Type o2, Show o2, TextShow o2, Typeable o2, C_Type o3, Show o3, TextShow o3, Typeable o3) => 
+    TrinaryExpression :: 
+        ( C_Type o1, Show o1, TextShow o1, Typeable o1
+        , C_Type o2, Show o2, TextShow o2, Typeable o2
+        , C_Type o3, Show o3, TextShow o3, Typeable o3
+        ) => 
         { astOpId :: Int
         , astFuncName :: Text
         , astOp1 :: AST o1
         , astOp2 :: AST o2
         , astOp3 :: AST o3
         } -> AST o
-    QuadrinaryExpression :: (C_Type o1, Show o1, TextShow o1, Typeable o1, C_Type o2, Show o2, TextShow o2, Typeable o2, C_Type o3, Show o3, TextShow o3, Typeable o3, C_Type o4, Show o4, TextShow o4, Typeable o4) => 
+    QuadrinaryExpression :: 
+        ( C_Type o1, Show o1, TextShow o1, Typeable o1
+        , C_Type o2, Show o2, TextShow o2, Typeable o2
+        , C_Type o3, Show o3, TextShow o3, Typeable o3
+        , C_Type o4, Show o4, TextShow o4, Typeable o4
+        ) => 
         { astOpId :: Int
         , astFuncName :: Text
         , astOp1 :: AST o1
@@ -71,14 +86,18 @@ instance (Show o, Typeable o) => Show (AST o) where
         "Literal(" <> show o <> " :: " <> show (typeOf o) <> ")"
     show v@(Variable s) = 
        "Variable(" <> T.unpack s <> " :: " <> show (typeRep v) <> ")"
-    show e@(UnaryExpression _ident name o) = 
-        T.unpack name <> "( " <> show o <> " )" <> " :: " <> show (typeRep e)
+    show e@(UnaryExpression _ident name o1) = 
+        T.unpack name <> "( " <> args <> " )" <> " :: " <> show (typeRep e)
+            where args = intercalate ", " [show o1]
     show e@(BinaryExpression _ident _isInfix name o1 o2) = 
-        T.unpack name <> "( " <> show o1 <> ", " <> show o2 <> " )" <> " :: " <> show (typeRep e)
+        T.unpack name <> "( " <> args <> " )" <> " :: " <> show (typeRep e)
+            where args = intercalate ", " $ [show o1, show o2]
     show e@(TrinaryExpression _ident name o1 o2 o3) = 
-        T.unpack name <> "( " <> show o1 <> ", " <> show o2 <> ", " <> show o3 <> " )" <> " :: " <> show (typeRep e)
+        T.unpack name <> "( " <> args <> " )" <> " :: " <> show (typeRep e)
+            where args = intercalate ", " [show o1, show o2, show o3]
     show e@(QuadrinaryExpression _ident name o1 o2 o3 o4) = 
-        T.unpack name <> "( " <> show o1 <> ", " <> show o2 <> ", " <> show o3 <> ", " <> show o4 <> " )" <> " :: " <> show (typeRep e)
+        T.unpack name <> "( " <> args <> " )" <> " :: " <> show (typeRep e)
+            where args = intercalate ", " [show o1, show o2, show o3, show o4]
 
 drawASTString :: (Show o, Typeable o) => AST o -> String
 drawASTString = unlines . draw
@@ -97,17 +116,17 @@ drawASTString = unlines . draw
         draw v@(Variable s) = 
             lines $ "Variable(" <> show s <> ") :: " <> show (typeOf v)
         draw e@(UnaryExpression n name o1) = 
-            lines ("UnaryExpression" <> " - " <> show n <> " - " <> show name <> " :: " <> show (typeRep o1) <> " -> " <> show (typeRep e)) 
-            <> drawSubTrees [o1]
+            lines ("UnaryExpression" <> " - " <> show n <> " - " <> show name <> " :: " <> args) <> drawSubTrees [o1]
+                where args = intercalate " -> " $ map show [typeRep o1, typeRep e]
         draw e@(BinaryExpression n _isInfix name o1 o2) = 
-            lines ("BinaryExpression" <> " - " <> show n <> " - " <> show name <> " :: " <> show (typeRep o1) <> " -> " <> show (typeRep o2) <> " -> " <> show (typeRep e)) 
-            <> drawSubTrees [o1] <> drawSubTrees [o2]
+            lines ("BinaryExpression" <> " - " <> show n <> " - " <> show name <> " :: " <> args) <> drawSubTrees [o1] <> drawSubTrees [o2]
+                where args = intercalate " -> " $ map show [typeRep o1, typeRep o2, typeRep e]
         draw e@(TrinaryExpression n name o1 o2 o3) = 
-            lines ("TrinaryExpression" <> " - " <> show n <> " - " <> show name <> " :: " <> show (typeRep o1) <> " -> " <> show (typeRep o2) <> " -> " <> show (typeRep o3) <> " -> " <> show (typeRep e)) 
-            <> drawSubTrees [o1] <> drawSubTrees [o2] <> drawSubTrees [o3]
+            lines ("TrinaryExpression" <> " - " <> show n <> " - " <> show name <> " :: " <> args) <> drawSubTrees [o1] <> drawSubTrees [o2] <> drawSubTrees [o3]
+                where args = intercalate " -> " $ map show [typeRep o1, typeRep o2, typeRep o3, typeRep e]
         draw e@(QuadrinaryExpression n name o1 o2 o3 o4) = 
-            lines ("QuadrinaryExpression" <> " - " <> show n <> " - " <> show name <> " :: " <> show (typeRep o1) <> " -> " <> show (typeRep o2) <> " -> " <> show (typeRep o3) <> " -> " <> show (typeRep o4) <> " -> " <> show (typeRep e)) 
-            <> drawSubTrees [o1] <> drawSubTrees [o2] <> drawSubTrees [o3] <> drawSubTrees [o4]
+            lines ("QuadrinaryExpression" <> " - " <> show n <> " - " <> show name <> " :: " <> args) <> drawSubTrees [o1] <> drawSubTrees [o2] <> drawSubTrees [o3] <> drawSubTrees [o4]
+                where args = intercalate " -> " $ map show [typeRep o1, typeRep o2, typeRep o3, typeRep o4, typeRep e]
 
 type CompileMonad a = RWS () [Text] IntSet a
 
@@ -278,16 +297,30 @@ prefixOp = Op False
 class ToExpression a where
     toExpression :: Int -> Bool -> Text -> a -> AST o
 
-instance (C_Type o1, Show o1, TextShow o1, Typeable o1) => ToExpression (OneArg (AST o1)) where
+instance 
+    ( C_Type o1, Show o1, TextShow o1, Typeable o1
+    ) => ToExpression (OneArg (AST o1)) where
     toExpression i _ t (OneArg a) = UnaryExpression i t a
 
-instance (C_Type o1, Show o1, TextShow o1, Typeable o1, C_Type o2, Show o2, TextShow o2, Typeable o2) => ToExpression (TwoArg (AST o1) (AST o2)) where
+instance 
+    ( C_Type o1, Show o1, TextShow o1, Typeable o1
+    , C_Type o2, Show o2, TextShow o2, Typeable o2
+    ) => ToExpression (TwoArg (AST o1) (AST o2)) where
     toExpression i isInfix t (TwoArg a b) = BinaryExpression i isInfix t a b
 
-instance (C_Type o1, Show o1, TextShow o1, Typeable o1, C_Type o2, Show o2, TextShow o2, Typeable o2, C_Type o3, Show o3, TextShow o3, Typeable o3) => ToExpression (ThreeArg (AST o1) (AST o2) (AST o3)) where
+instance 
+    ( C_Type o1, Show o1, TextShow o1, Typeable o1
+    , C_Type o2, Show o2, TextShow o2, Typeable o2
+    , C_Type o3, Show o3, TextShow o3, Typeable o3
+    ) => ToExpression (ThreeArg (AST o1) (AST o2) (AST o3)) where
     toExpression i _isInfix t (ThreeArg a b c) = TrinaryExpression i t a b c
 
-instance (C_Type o1, Show o1, TextShow o1, Typeable o1, C_Type o2, Show o2, TextShow o2, Typeable o2, C_Type o3, Show o3, TextShow o3, Typeable o3, C_Type o4, Show o4, TextShow o4, Typeable o4) => ToExpression (FourArg (AST o1) (AST o2) (AST o3) (AST o4)) where
+instance 
+    ( C_Type o1, Show o1, TextShow o1, Typeable o1
+    , C_Type o2, Show o2, TextShow o2, Typeable o2
+    , C_Type o3, Show o3, TextShow o3, Typeable o3
+    , C_Type o4, Show o4, TextShow o4, Typeable o4
+    ) => ToExpression (FourArg (AST o1) (AST o2) (AST o3) (AST o4)) where
     toExpression i _isInfix t (FourArg a b c d) = QuadrinaryExpression i t a b c d
 
 {- Opify -}
@@ -308,25 +341,62 @@ instance (OpIn w i, OpOut w i o) => Opify w (Op i o) where
 class OpOut w a b where
     opout :: Bool -> Text -> Proxy b -> a -> State w ()
 
-instance forall w i a o1. (a ~ AST o1, ToExpression i, HasStackLens w a, HasIdentifier w) => OpOut w i (OneArg a) where
+instance forall w i a o1. 
+    ( ToExpression i, HasIdentifier w 
+    , a ~ AST o1, HasStackLens w a
+    ) => OpOut w i (OneArg a) where
     opout isInfix t _ a = 
         do
             i <- getIdentifier
             pushL (stackLens :: StackLens w a) $ toExpression i isInfix t a
 
-instance forall w i a b o1 o2. (a ~ AST o1, b ~ AST o2, ToExpression i, HasStackLens w a, HasStackLens w b, HasIdentifier w) => OpOut w i (TwoArg a b) where
+instance forall w i a o1 b o2. 
+    ( ToExpression i, HasIdentifier w 
+    , a ~ AST o1, HasStackLens w a
+    , b ~ AST o2, HasStackLens w b
+    ) => OpOut w i (TwoArg a b) where
     opout isInfix t _ a = 
         do
             i <- getIdentifier
             pushL (stackLens :: StackLens w a) $ toExpression i isInfix t a
             pushL (stackLens :: StackLens w b) $ toExpression i isInfix t a
 
+instance forall w i a o1 b o2 c o3. 
+    ( ToExpression i, HasIdentifier w 
+    , a ~ AST o1, HasStackLens w a
+    , b ~ AST o2, HasStackLens w b
+    , c ~ AST o3, HasStackLens w c
+    ) => OpOut w i (ThreeArg a b c) where
+    opout isInfix t _ a = 
+        do
+            i <- getIdentifier
+            pushL (stackLens :: StackLens w a) $ toExpression i isInfix t a
+            pushL (stackLens :: StackLens w b) $ toExpression i isInfix t a
+            pushL (stackLens :: StackLens w c) $ toExpression i isInfix t a
+
+instance forall w i a o1 b o2 c o3 d o4. 
+    ( ToExpression i, HasIdentifier w 
+    , a ~ AST o1, HasStackLens w a
+    , b ~ AST o2, HasStackLens w b
+    , c ~ AST o3, HasStackLens w c
+    , d ~ AST o4, HasStackLens w d
+    ) => OpOut w i (FourArg a b c d) where
+    opout isInfix t _ a = 
+        do
+            i <- getIdentifier
+            pushL (stackLens :: StackLens w a) $ toExpression i isInfix t a
+            pushL (stackLens :: StackLens w b) $ toExpression i isInfix t a
+            pushL (stackLens :: StackLens w c) $ toExpression i isInfix t a
+            pushL (stackLens :: StackLens w d) $ toExpression i isInfix t a
+
 {- OpIn -}
 
 class OpIn w a where
     opin:: Proxy a -> State w (Maybe a)
 
-instance forall w a. HasStackLens w a => OpIn w (OneArg a) where
+instance forall w a. 
+    HasStackLens w a 
+    => OpIn w (OneArg a) where
     opin _ = 
         do
             w <- get
@@ -335,7 +405,10 @@ instance forall w a. HasStackLens w a => OpIn w (OneArg a) where
             when (isNothing m) $ put w
             pure m
 
-instance forall w a b. (HasStackLens w a, HasStackLens w b) => OpIn w (TwoArg a b) where
+instance forall w a b. 
+    ( HasStackLens w a
+    , HasStackLens w b
+    ) => OpIn w (TwoArg a b) where
     opin _ = 
         do
             w <- get
@@ -345,7 +418,11 @@ instance forall w a b. (HasStackLens w a, HasStackLens w b) => OpIn w (TwoArg a 
             when (isNothing m) $ put w
             pure m
 
-instance forall w a b c. (HasStackLens w a, HasStackLens w b, HasStackLens w c) => OpIn w (ThreeArg a b c) where
+instance forall w a b c. 
+    ( HasStackLens w a
+    , HasStackLens w b
+    , HasStackLens w c
+    ) => OpIn w (ThreeArg a b c) where
     opin _ = 
         do
             w <- get
@@ -356,7 +433,12 @@ instance forall w a b c. (HasStackLens w a, HasStackLens w b, HasStackLens w c) 
             when (isNothing m) $ put w
             pure m
 
-instance forall w a b c d. (HasStackLens w a, HasStackLens w b, HasStackLens w c, HasStackLens w d) => OpIn w (FourArg a b c d) where
+instance forall w a b c d. 
+    ( HasStackLens w a
+    , HasStackLens w b
+    , HasStackLens w c
+    , HasStackLens w d
+    ) => OpIn w (FourArg a b c d) where
     opin _ = 
         do
             w <- get
