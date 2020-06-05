@@ -6,40 +6,22 @@
 
 module Epigenisys.Language.Ops where
 
-import Data.Typeable
+import Data.Proxy (Proxy)
+import Data.Text (Text)
 
 import Epigenisys.Language.Stack
 import Epigenisys.Language.Types
 
 import TextShow
 
-class ConvertType a b where
-  convertType :: a -> b
+literalOp :: forall w a. (HasStackLens w a, TextShow a) => Proxy a -> a -> PartialStackOp w
+literalOp _ a = (PartialStackOp (showt a) $ pushL (stackLens :: StackLens w a) a)
 
-instance ConvertType Int Float where
-  convertType = fromIntegral
+convertOp :: forall w a b. (HasStackLens w a, HasStackLens w b) => Proxy (a,b) -> Text -> (a -> b) -> PartialStackOp w
+convertOp _ t f = PartialStackOp t $ convertOp' (stackLens :: StackLens w a) (stackLens :: StackLens w b) f
 
-instance ConvertType Float Int where
-  convertType = round
-
-instance ConvertType Integer Float where
-  convertType = fromIntegral
-
-instance ConvertType Float Integer where
-  convertType = round
-
-literalOp :: forall w a. (HasStackLens w a, TextShow a) => a -> ProxyPartialStackOp w a
-literalOp a _ = (PartialStackOp (showt a) $ pushL (stackLens :: StackLens w a) a)
-
-literalOp2 :: forall w a. (HasStackLens w a, TextShow a) => Proxy a -> a -> PartialStackOp w
-literalOp2 _ a = (PartialStackOp (showt a) $ pushL (stackLens :: StackLens w a) a)
-
-convertTypeOp :: forall w a b. (HasStackLens w a, HasStackLens w b, ConvertType a b, Typeable b) => ProxyPartialStackOp w (a,b)
-convertTypeOp _ = PartialStackOp opName $ convertOp (stackLens :: StackLens w a) (stackLens :: StackLens w b) convertType
-  where opName = "convertTo" <> (showt $ typeRep (Proxy :: Proxy b))
-
-convertOp :: StackLens w a -> StackLens w b -> (a -> b) -> StackFunc w
-convertOp la lb f = 
+convertOp' :: StackLens w a -> StackLens w b -> (a -> b) -> StackFunc w
+convertOp' la lb f = 
   do
     w <- get
     a <- popL la
@@ -79,7 +61,7 @@ divideOp :: forall w a. (HasStackLens w a, Fractional a) => ProxyPartialStackOp 
 divideOp _ = PartialStackOp "/" $ binaryOp (stackLens :: StackLens w a) (/)
 
 roundOp :: forall w a b. (RealFrac a, Integral b, HasStackLens w a, HasStackLens w b) => ProxyPartialStackOp w (a,b)
-roundOp _ = PartialStackOp "round" $ convertOp (stackLens :: StackLens w a) (stackLens :: StackLens w b) round
+roundOp _ = PartialStackOp "round" $ convertOp' (stackLens :: StackLens w a) (stackLens :: StackLens w b) round
 
 fromIntegralOp :: forall w a b. (Integral a, Num b, HasStackLens w a, HasStackLens w b) => ProxyPartialStackOp w (a,b)
-fromIntegralOp _ = PartialStackOp "fromIntegral" $ convertOp (stackLens :: StackLens w a) (stackLens :: StackLens w b) fromIntegral
+fromIntegralOp _ = PartialStackOp "fromIntegral" $ convertOp' (stackLens :: StackLens w a) (stackLens :: StackLens w b) fromIntegral

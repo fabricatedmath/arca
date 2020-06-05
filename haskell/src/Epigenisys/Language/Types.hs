@@ -22,13 +22,6 @@ type StackFunc w = State w ()
 type ProxyPartialStackOp w a = Proxy a -> PartialStackOp w
 
 data PartialStackOp w = PartialStackOp Text (StackFunc w)
-{-
-instance Show (PartialStackOp w) where
-  show (PartialStackOp t _) = "PartialStackOp (" ++ show t ++ ")"
-
-instance TextShow (PartialStackOp w) where
-  showb (PartialStackOp t _) = "PartialStackOp (" <> fromText t <> ")"
-  -}
 
 newtype Namespace = Namespace { unNamespace :: Text }
   deriving (Eq, Generic, Ord, Show)
@@ -50,10 +43,7 @@ data StackOp w =
   }
 
 instance Show (StackOp w) where
-  show sop = 
-    T.unpack $ 
-    unNamespace (stackOpNamespace sop) <> "." <> unOpName (stackOpName sop)
+  show = T.unpack . showt
 
 instance TextShow (StackOp w) where
-  showb sop = 
-    (fromText $ unNamespace $ stackOpNamespace sop) <> singleton '.' <> (fromText $ unOpName $ stackOpName sop)
+  showb sop = showb (stackOpNamespace sop) <> singleton '.' <> showb (stackOpName sop)

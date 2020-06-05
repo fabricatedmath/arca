@@ -33,7 +33,7 @@ import Epigenisys.Language.Types -- (PartialStackOp(..), StackFunc)
 
 type LiteralParser w = Text -> Either String (PartialStackOp w)
 data NamespaceOps w = NamespaceOps Namespace (Maybe (LiteralParser w)) [PartialStackOp w]
-newtype WorldParserMap2 w = WorldParserMap2 (Map Namespace (NamespaceParser w))
+newtype WorldParserMap w = WorldParserMap2 (Map Namespace (NamespaceParser w))
 
 type NamespaceParser w = Text -> Either String (StackOp w)
 
@@ -45,8 +45,8 @@ applyNamespace namespace (PartialStackOp opName f) =
   , stackOpNamespace = namespace
   }
 
-worldParser2 :: HasNamespaces w => WorldParserMap2 w
-worldParser2 = WorldParserMap2 $ Map.fromList $ map buildParserNamespace $ getNamespaces
+worldParser :: HasNamespaces w => WorldParserMap w
+worldParser = WorldParserMap2 $ Map.fromList $ map buildParserNamespace $ getNamespaces
 
 buildParserNamespace :: NamespaceOps w -> (Namespace, NamespaceParser w)
 buildParserNamespace (NamespaceOps namespace mliteralParser partialStackOps) = (namespace, lookupOp)
@@ -65,10 +65,10 @@ buildParserNamespace (NamespaceOps namespace mliteralParser partialStackOps) = (
                 a <- literalParser t
                 return $ applyNamespace namespace $ a
 
-opify2 :: Traversable t => WorldParserMap2 w -> t StackOpText -> Either String (t (StackOp w))
-opify2 m = traverse (findOp m)
+opify :: Traversable t => WorldParserMap w -> t StackOpText -> Either String (t (StackOp w))
+opify m = traverse (findOp m)
   where
-    findOp :: WorldParserMap2 w -> StackOpText -> Either String (StackOp w)
+    findOp :: WorldParserMap w -> StackOpText -> Either String (StackOp w)
     findOp (WorldParserMap2 worldMap) (StackOpText stackName' opName') = 
       case worldMap Map.!? stackName' of
         Nothing -> Left $ "Failed to find: " ++ show stackName'
@@ -76,8 +76,6 @@ opify2 m = traverse (findOp m)
 
 class HasNamespaces w where
   getNamespaces :: [NamespaceOps w]
-
---buildParser :: HasNamespaces w => 
 
 data LanguageTree a = Open (LanguageForest a) | Expression a
   deriving (Generic, Show)
@@ -141,55 +139,7 @@ parseText =  A.parseOnly parser
                 void $ A.char '.'
                 second <- A.takeWhile1 (\c -> c /= '(' && c /= ')' && not (isSpace c))
                 return $ Expression $ StackOpText (Namespace first) (OpName second)
-{-
-  class (HasStackLens w a, Show a, TextShow a) => HasStack w a where
-  stackName :: Proxy (w,a) -> Namespace
-  stackOps :: Proxy (w,a) -> [PartialStackOp w]
-  stackParseLiteral :: Proxy (w,a) -> Maybe (Text -> Either String a)
 
-applyOp :: forall w a. HasStack w a => Proxy (w,a) -> PartialStackOp w -> StackOp w
-applyOp proxy (PartialStackOp opName stackFunc) =
-  StackOp 
-  { stackOpFunc = stackFunc
-  , stackOpName = OpName opName
-  , stackOpNamespace = stackName proxy
-  }
-  -}
-  {-
-newtype WorldParserMap w = WorldParserMap (Map Namespace (StackParser w))
-
-type StackParser w = OpName -> Either String (StackOp w)
-
-opify :: Traversable t => WorldParserMap w -> t StackOpText -> Either String (t (StackOp w))
-opify m = traverse (findOp m)
-  where
-    findOp :: WorldParserMap w -> StackOpText -> Either String (StackOp w)
-    findOp (WorldParserMap worldMap) (StackOpText stackName' opName') = 
-      case worldMap Map.!? stackName' of
-        Nothing -> Left $ "Failed to find: " ++ show stackName'
-        Just stackParser -> stackParser opName'
-
-worldParser :: HasWorldParser w => WorldParserMap w 
-worldParser = WorldParserMap $ Map.fromList $ map makeStackParser $ worldTypes
-  where
-    makeStackParser :: StackType w -> (Namespace, StackParser w)
-    makeStackParser (StackType p) = (stackName p, lookupOp)
-      where
-        opMap = Map.fromList $ map f ops
-          where f sop = (stackOpName sop, sop)
-                ops = map (applyOp p) $ stackOps p
-
-        lookupOp t = 
-          case opMap Map.!? t of
-            Just op' -> return op'
-            Nothing -> 
-              case stackParseLiteral p of
-                Nothing -> Left $ "Failed to parse: " ++ show t
-                Just literalParser ->
-                  do
-                    a <- literalParser $ unOpName t
-                    return $ applyOp p $ literalOp a Proxy
--}
 textRead :: Reader a -> Text -> Either String a
 textRead reader t = 
   either (\a -> Left $ "On input " ++ show t ++ ": " ++ a) Right $ do
@@ -198,22 +148,6 @@ textRead reader t =
       then return i
       else Left $ "Failed to consume all input on literal: " ++ show t
 
-{-
-data StackType w = forall a. HasStack w a => StackType (Proxy (w,a))
-
-class HasWorldParser w where
-  worldTypes :: [StackType w]
-
--}
-{-
--- | Need to refactor this or prune unneccesary functions
-printWorldStackOps :: forall w. HasWorldParser w => Proxy w -> String
-printWorldStackOps _ = show $ map getStackOps worldTypes
-  where
-    getStackOps :: StackType w -> [StackOp w]
-    getStackOps (StackType p) = map (applyOp p) $ stackOps p
-    -}
-
 parseLang :: HasNamespaces w => Text -> Either String (LanguageTree (StackOp w))
-parseLang program = parseText program >>= opify2 worldParser2
+parseLang program = parseText program >>= opify worldParser
     

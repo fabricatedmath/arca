@@ -13,11 +13,9 @@ import qualified Data.Text.Lazy as T
 
 import TextShow
 
-import Epigenisys.Language.Parser (
-    LanguageTree(..), parseLang, textRead, HasNamespaces
-    )
+import Epigenisys.Language.Parser
 import Epigenisys.Language.Stack
-import Epigenisys.Language.Types (Namespace(..), StackOp(..))
+import Epigenisys.Language.Types
 
 newtype Exec w = Exec (LanguageTree (StackOp w))
 
@@ -49,4 +47,3 @@ runLang program =  do
     opTree <- Exec <$> parseLang program :: Either String (Exec w)
     let m = pushL stackLens opTree *> runWorld
     return $ execState m getEmpty
-
