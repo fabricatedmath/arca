@@ -3,18 +3,17 @@
 
 module Main where
 
-import Control.Monad.State.Strict
-import Control.Monad.Except
+--import Control.Monad.Except
 
 import Data.Text (Text)
-import qualified Data.Text.IO as T
+--import qualified Data.Text.IO as T
 
 import TextShow
 
-import Epigenisys.FFI.Test
+--import Epigenisys.FFI.Test
 import Epigenisys.Language 
 import Epigenisys.Worlds.SimpleWorld
-import Epigenisys.Worlds.SymbolWorld
+--import Epigenisys.Worlds.SymbolWorld
 --import qualified Epigenisys.Worlds.CudaWorld as C
 
 testProgram :: Text

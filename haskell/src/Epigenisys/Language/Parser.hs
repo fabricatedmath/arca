@@ -4,7 +4,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
-module Epigenisys.Language.Parser where
+module Epigenisys.Language.Parser 
+  ( LanguageTree(..), parseLang, textRead, HasNamespaces(..)
+  , NamespaceOps(..), drawLanguageTree
+  ) where
 
 import Control.Applicative
 import Control.Monad (void)
@@ -21,15 +24,11 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Read (Reader)
 
-import Data.Proxy
-
 import GHC.Generics
 
 import TextShow
 import TextShow.Generic
 
-import Epigenisys.Language.Ops (literalOp)
-import Epigenisys.Language.Stack (HasStackLens)
 import Epigenisys.Language.Types -- (PartialStackOp(..), StackFunc)
 
 type LiteralParser w = Text -> Either String (PartialStackOp w)
@@ -142,8 +141,8 @@ parseText =  A.parseOnly parser
                 void $ A.char '.'
                 second <- A.takeWhile1 (\c -> c /= '(' && c /= ')' && not (isSpace c))
                 return $ Expression $ StackOpText (Namespace first) (OpName second)
-
-class (HasStackLens w a, Show a, TextShow a) => HasStack w a where
+{-
+  class (HasStackLens w a, Show a, TextShow a) => HasStack w a where
   stackName :: Proxy (w,a) -> Namespace
   stackOps :: Proxy (w,a) -> [PartialStackOp w]
   stackParseLiteral :: Proxy (w,a) -> Maybe (Text -> Either String a)
@@ -155,7 +154,8 @@ applyOp proxy (PartialStackOp opName stackFunc) =
   , stackOpName = OpName opName
   , stackOpNamespace = stackName proxy
   }
-
+  -}
+  {-
 newtype WorldParserMap w = WorldParserMap (Map Namespace (StackParser w))
 
 type StackParser w = OpName -> Either String (StackOp w)
@@ -189,7 +189,7 @@ worldParser = WorldParserMap $ Map.fromList $ map makeStackParser $ worldTypes
                   do
                     a <- literalParser $ unOpName t
                     return $ applyOp p $ literalOp a Proxy
-
+-}
 textRead :: Reader a -> Text -> Either String a
 textRead reader t = 
   either (\a -> Left $ "On input " ++ show t ++ ": " ++ a) Right $ do
@@ -198,10 +198,13 @@ textRead reader t =
       then return i
       else Left $ "Failed to consume all input on literal: " ++ show t
 
+{-
 data StackType w = forall a. HasStack w a => StackType (Proxy (w,a))
 
 class HasWorldParser w where
   worldTypes :: [StackType w]
+
+-}
 {-
 -- | Need to refactor this or prune unneccesary functions
 printWorldStackOps :: forall w. HasWorldParser w => Proxy w -> String
@@ -211,6 +214,6 @@ printWorldStackOps _ = show $ map getStackOps worldTypes
     getStackOps (StackType p) = map (applyOp p) $ stackOps p
     -}
 
-parseLang :: HasNamespaces w => Proxy w -> Text -> Either String (LanguageTree (StackOp w))
-parseLang _ program = parseText program >>= opify2 worldParser2
+parseLang :: HasNamespaces w => Text -> Either String (LanguageTree (StackOp w))
+parseLang program = parseText program >>= opify2 worldParser2
     

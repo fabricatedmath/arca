@@ -3,22 +3,21 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Epigenisys.Language (
-    Stack(..), Exec(..), HasEmpty(..), runLang, HasStack(..),
-    HasWorldParser(..), StackType(..), StackOp(..), textRead, Namespace(..)
+    Stack(..), Exec(..), HasEmpty(..), runLang,
+    StackOp(..), textRead, Namespace(..)
     )
 where
 
-import Data.Proxy
 import Data.Text (Text)
 import qualified Data.Text.Lazy as T
 
 import TextShow
 
 import Epigenisys.Language.Parser (
-    LanguageTree(..), HasWorldParser(..), parseLang, HasStack(..), StackType(..), textRead, HasNamespaces
+    LanguageTree(..), parseLang, textRead, HasNamespaces
     )
 import Epigenisys.Language.Stack
-import Epigenisys.Language.Types (Namespace(..), OpName(..), StackOp(..))
+import Epigenisys.Language.Types (Namespace(..), StackOp(..))
 
 newtype Exec w = Exec (LanguageTree (StackOp w))
 
@@ -47,7 +46,7 @@ runWorld = do
 
 runLang :: forall w. (HasNamespaces w, HasStackLens w (Exec w), HasEmpty w) => Text -> Either String w
 runLang program =  do
-    opTree <- Exec <$> parseLang Proxy program :: Either String (Exec w)
+    opTree <- Exec <$> parseLang program :: Either String (Exec w)
     let m = pushL stackLens opTree *> runWorld
     return $ execState m getEmpty
 
