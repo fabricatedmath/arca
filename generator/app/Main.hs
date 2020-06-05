@@ -51,8 +51,9 @@ buildFile targetDir filepath =
                 , ""
                 , "module " <> modulePath <> "." <> moduleName <> " where"
                 , ""
-                , "import Epigenisys.Sandbox.Sandbox"
+                , "import Epigenisys.Worlds.CudaWorld"
                 , "import Epigenisys.Language.Stack"
+                , "import Epigenisys.Language.Types"
                 , ""
                 , "-- | Exported Lists"
                 , ""
@@ -89,7 +90,7 @@ createFuncList (litTypes, funcNames) =
             constraint 
                 | null litNames = "" 
                 | otherwise = "(HasIdentifier w, " <> T.intercalate ", " (map ("HasStackLens w " <>) litNames) <> ") => "
-            retType = "[State w ()]"
+            retType = "[PartialStackOp w]"
             typeLine = listName <> " :: " <> constraint <> retType
             defLine = listName <> " = " <> "[" <> T.intercalate ", " funcNames <> "]"
         return $ T.unlines [typeLine, defLine]
@@ -209,7 +210,7 @@ generateFuncCode' fdef@(FunctionDef fretType fn fargs comment _originalText) =
                 where typeConstraints 
                             | null argTypes = ""
                             | otherwise = "(HasIdentifier w, " <> T.intercalate ", " (map ("HasStackLens w " <>) argTypes) <> ") => "
-                      retType = "State w ()"
+                      retType = "PartialStackOp w"
             funcDecl = fn <> " = " <> "opify (" <> op <> ")"
                 where op = "Op False " <> ("\"" <> fn <> "\"") <> " :: Op " <> ia <> " " <> oa
         return $ T.unlines [commentLine, typeDecl, funcDecl]

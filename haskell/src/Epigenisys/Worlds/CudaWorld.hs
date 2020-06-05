@@ -11,7 +11,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Epigenisys.Sandbox.Sandbox where
+module Epigenisys.Worlds.CudaWorld where
 
 import Control.Monad.RWS.Strict
 
@@ -32,6 +32,7 @@ import TextShow
 import TextShow.Generic
 
 import Epigenisys.Language.Stack
+import Epigenisys.Language.Types
 
 class HasIdentifier w where
     getIdentifier :: State w Int
@@ -330,10 +331,10 @@ instance
 {- Opify -}
 
 class Opify w a where
-    opify :: a -> State w ()
+    opify :: a -> PartialStackOp w
 
 instance (OpIn w i, OpOut w i o) => Opify w (Op i o) where
-    opify (Op isInfix text) = 
+    opify (Op isInfix text) = PartialStackOp text $
         do
             mi <- opin (Proxy :: Proxy i)
             case mi of
