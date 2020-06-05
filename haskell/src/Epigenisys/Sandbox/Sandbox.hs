@@ -159,7 +159,8 @@ compile ast = T.unlines $ map (`T.append` ";") $ snd $ evalRWS (compile' ast) ()
                     do
                         ovar <- compile' o
                         let lhs = ctypep e <> " " <> var <> " = "
-                            rhs = name <> "(" <> ovar <> ")"
+                            rhs = name <> "(" <> args <> ")"
+                                where args = ovar
                         tell $ pure $ lhs <> rhs
                 pure var
         compile' e@(BinaryExpression i isInfix name o1 o2) = 
@@ -172,7 +173,8 @@ compile ast = T.unlines $ map (`T.append` ";") $ snd $ evalRWS (compile' ast) ()
                         ovar2 <- compile' o2
                         let lhs = ctypep e <> " " <> var <> " = "
                             rhs | isInfix = ovar1 <> " " <> name <> " " <> ovar2
-                                | otherwise = name <> "(" <> ovar1 <> ", " <> ovar2 <> ")"
+                                | otherwise = name <> "(" <> args <> ")"
+                                    where args = T.intercalate ", " [ovar1, ovar2]
                         tell $ pure $ lhs <> rhs
                 pure var
         compile' e@(TrinaryExpression i name o1 o2 o3) = 
@@ -185,7 +187,8 @@ compile ast = T.unlines $ map (`T.append` ";") $ snd $ evalRWS (compile' ast) ()
                         ovar2 <- compile' o2
                         ovar3 <- compile' o3
                         let lhs = ctypep e <> " " <> var <> " = "
-                            rhs = name <> "(" <> ovar1 <> ", " <> ovar2 <> ", " <> ovar3 <> ")"
+                            rhs = name <> "(" <> args <> ")"
+                                where args = T.intercalate ", " [ovar1, ovar2, ovar3]
                         tell $ pure $ lhs <> rhs
                 pure var
         compile' e@(QuadrinaryExpression i name o1 o2 o3 o4) = 
@@ -199,7 +202,8 @@ compile ast = T.unlines $ map (`T.append` ";") $ snd $ evalRWS (compile' ast) ()
                         ovar3 <- compile' o3
                         ovar4 <- compile' o4
                         let lhs = ctypep e <> " " <> var <> " = "
-                            rhs = name <> "(" <> ovar1 <> ", " <> ovar2 <> ", " <> ovar3 <> ", " <> ovar4 <> ")"
+                            rhs = name <> "(" <> args <> ")"
+                                where args = T.intercalate ", " [ovar1, ovar2, ovar3, ovar4]
                         tell $ pure $ lhs <> rhs
                 pure var
 
@@ -394,31 +398,31 @@ instance forall w i a o1 b o2 c o3 d o4.
 class OpIn w a where
     opin:: Proxy a -> State w (Maybe a)
 
-instance forall w a. 
+instance
     HasStackLens w a 
     => OpIn w (OneArg a) where
     opin _ = 
         do
             w <- get
-            ma <- popL stackLens :: State w (Maybe a)
+            ma <- popL stackLens
             let m = OneArg <$> ma
             when (isNothing m) $ put w
             pure m
 
-instance forall w a b. 
+instance
     ( HasStackLens w a
     , HasStackLens w b
     ) => OpIn w (TwoArg a b) where
     opin _ = 
         do
             w <- get
-            ma <- popL stackLens :: State w (Maybe a)
-            mb <- popL stackLens :: State w (Maybe b)
+            ma <- popL stackLens
+            mb <- popL stackLens
             let m = TwoArg <$> ma <*> mb
             when (isNothing m) $ put w
             pure m
 
-instance forall w a b c. 
+instance
     ( HasStackLens w a
     , HasStackLens w b
     , HasStackLens w c
@@ -426,14 +430,14 @@ instance forall w a b c.
     opin _ = 
         do
             w <- get
-            ma <- popL stackLens :: State w (Maybe a)
-            mb <- popL stackLens :: State w (Maybe b)
-            mc <- popL stackLens :: State w (Maybe c)
+            ma <- popL stackLens
+            mb <- popL stackLens
+            mc <- popL stackLens
             let m = ThreeArg <$> ma <*> mb <*> mc
             when (isNothing m) $ put w
             pure m
 
-instance forall w a b c d. 
+instance
     ( HasStackLens w a
     , HasStackLens w b
     , HasStackLens w c
@@ -442,10 +446,10 @@ instance forall w a b c d.
     opin _ = 
         do
             w <- get
-            ma <- popL stackLens :: State w (Maybe a)
-            mb <- popL stackLens :: State w (Maybe b)
-            mc <- popL stackLens :: State w (Maybe c)
-            md <- popL stackLens :: State w (Maybe d)
+            ma <- popL stackLens
+            mb <- popL stackLens
+            mc <- popL stackLens
+            md <- popL stackLens
             let m = FourArg <$> ma <*> mb <*> mc <*> md
             when (isNothing m) $ put w
             pure m

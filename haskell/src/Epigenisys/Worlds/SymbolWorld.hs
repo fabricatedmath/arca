@@ -72,12 +72,12 @@ instance HasStackLens SymbolWorld AST where
     stackLens = astStack
 
 instance HasStack SymbolWorld (Exec SymbolWorld) where
-    stackName _ = StackName "Exec"
+    stackName _ = Namespace "Exec"
     stackOps _ = []
     stackParseLiteral _= Nothing
 
 instance HasStack SymbolWorld AST where
-    stackName _ = StackName "Integer"
+    stackName _ = Namespace "Integer"
     stackOps _ = 
         [ addOp astProxy
         , multiplyOp astProxy

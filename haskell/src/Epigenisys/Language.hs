@@ -4,7 +4,7 @@
 
 module Epigenisys.Language (
     Stack(..), Exec(..), HasEmpty(..), runLang, HasStack(..),
-    HasWorldParser(..), StackType(..), StackOp(..), textRead, StackName(..)
+    HasWorldParser(..), StackType(..), StackOp(..), textRead, Namespace(..)
     )
 where
 
@@ -15,10 +15,10 @@ import qualified Data.Text.Lazy as T
 import TextShow
 
 import Epigenisys.Language.Parser (
-    LanguageTree(..), StackOp(..), HasWorldParser(..), parseLang, HasStack(..), StackType(..), textRead,
-    StackName(..)
+    LanguageTree(..), HasWorldParser(..), parseLang, HasStack(..), StackType(..), textRead, HasNamespaces
     )
 import Epigenisys.Language.Stack
+import Epigenisys.Language.Types (Namespace(..), OpName(..), StackOp(..))
 
 newtype Exec w = Exec (LanguageTree (StackOp w))
 
@@ -45,7 +45,7 @@ runWorld = do
             runWorld
 
 
-runLang :: forall w. (HasWorldParser w, HasStackLens w (Exec w), HasEmpty w) => Text -> Either String w
+runLang :: forall w. (HasNamespaces w, HasStackLens w (Exec w), HasEmpty w) => Text -> Either String w
 runLang program =  do
     opTree <- Exec <$> parseLang Proxy program :: Either String (Exec w)
     let m = pushL stackLens opTree *> runWorld

@@ -180,12 +180,12 @@ instance HasStackLens World (AST Int) where
     stackLens = intStack
 
 instance HasStack World (Exec World) where
-    stackName _ = StackName "Exec"
+    stackName _ = Namespace "Exec"
     stackOps _ = []
     stackParseLiteral _ = Nothing
 
 instance HasStack World (AST Int) where
-    stackName _ = StackName "Integer"
+    stackName _ = Namespace "Integer"
     stackOps _ = 
         [ addOp intProxy
         , multiplyOp intProxy

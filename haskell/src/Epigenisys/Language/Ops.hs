@@ -6,25 +6,12 @@
 
 module Epigenisys.Language.Ops where
 
-import Data.Text (Text)
-import qualified Data.Text as T (append)
 import Data.Typeable
 
-import TextShow
-
 import Epigenisys.Language.Stack
+import Epigenisys.Language.Types
 
-type StackFunc w = State w ()
-
-type ProxyPartialStackOp w a = Proxy a -> PartialStackOp w
-
-data PartialStackOp w = PartialStackOp Text (StackFunc w)
-
-instance Show (PartialStackOp w) where
-  show (PartialStackOp t _) = "PartialStackOp (" ++ show t ++ ")"
-
-instance TextShow (PartialStackOp w) where
-  showb (PartialStackOp t _) = "PartialStackOp (" <> fromText t <> ")"
+import TextShow
 
 class ConvertType a b where
   convertType :: a -> b
@@ -44,9 +31,12 @@ instance ConvertType Float Integer where
 literalOp :: forall w a. (HasStackLens w a, TextShow a) => a -> ProxyPartialStackOp w a
 literalOp a _ = (PartialStackOp (showt a) $ pushL (stackLens :: StackLens w a) a)
 
+literalOp2 :: forall w a. (HasStackLens w a, TextShow a) => Proxy a -> a -> PartialStackOp w
+literalOp2 _ a = (PartialStackOp (showt a) $ pushL (stackLens :: StackLens w a) a)
+
 convertTypeOp :: forall w a b. (HasStackLens w a, HasStackLens w b, ConvertType a b, Typeable b) => ProxyPartialStackOp w (a,b)
 convertTypeOp _ = PartialStackOp opName $ convertOp (stackLens :: StackLens w a) (stackLens :: StackLens w b) convertType
-  where opName = "convertTo" `T.append` (showt $ typeRep (Proxy :: Proxy b))
+  where opName = "convertTo" <> (showt $ typeRep (Proxy :: Proxy b))
 
 convertOp :: StackLens w a -> StackLens w b -> (a -> b) -> StackFunc w
 convertOp la lb f = 

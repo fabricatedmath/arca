@@ -224,9 +224,9 @@ matchType l =
         C_LongInt -> pure "LI"
         C_LongLongInt -> pure "L"
         C_UnsignedLongLongInt -> pure "UL"
-        C_Void -> Left "Has Void Type"
-        C_Pointer _ -> Left "Has Pointer Type"
-        C_ConstChar -> Left "Has Const Char"
+        C_Void -> Left "Has Void Type!"
+        C_Pointer _ -> Left "Has Pointer Type!"
+        C_ConstChar -> Left "Has Const Char!"
 
 convertArgType :: [LiteralType] -> Either String Text
 convertArgType ts = 
@@ -239,4 +239,4 @@ convertArgType ts =
         argType' [a,b] = pure $ "TwoArg " <> a <> " " <> b
         argType' [a,b,c] = pure $ "ThreeArg " <> a <> " " <> b <> " " <> c
         argType' [a,b,c,d] = pure $ "FourArg " <> a <> " " <> b <> " " <> c <> " " <> d
-        argType' as = Left $ "too many args: " ++ show as 
+        argType' as = Left $ "Too Many Args!: " ++ show as 

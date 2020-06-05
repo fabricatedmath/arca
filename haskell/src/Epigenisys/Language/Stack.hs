@@ -32,8 +32,6 @@ newtype Stack a =
 
 type StackLens s a = Lens' s (Stack a)
 
---type StackLens' s f a = StackLens s a
-
 class HasStackLens w a where
   stackLens :: StackLens w a
 
