@@ -7,7 +7,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-
 module Epigenisys.Worlds.SimpleWorld where
 
 import Control.Lens

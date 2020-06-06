@@ -3,7 +3,7 @@
 
 module Epigenisys.Worlds.CudaWorld.GeneratedOps.SinglePrecisionIntrinsics where
 
-import Epigenisys.Worlds.CudaWorld
+import Epigenisys.Worlds.CudaWorld.Internal.CudaWorld
 import Epigenisys.Language.Stack
 import Epigenisys.Language.Types
 
