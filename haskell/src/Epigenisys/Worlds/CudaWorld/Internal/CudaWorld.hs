@@ -16,12 +16,13 @@ module Epigenisys.Worlds.CudaWorld.Internal.CudaWorld where
 import Control.Lens
 import Control.Monad.RWS.Strict
 
-import Data.List (intercalate)
+import Data.List (intersperse, intercalate)
 import Data.Maybe (isNothing)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as S
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Lazy.Builder as T
 import Data.Typeable
 
 import Data.Int
@@ -109,6 +110,24 @@ instance (Show o, Typeable o) => Show (AST o) where
     show e@(QuadrinaryExpression _ident name o1 o2 o3 o4) = 
         T.unpack name <> "( " <> args <> " )" <> " :: " <> show (typeRep e)
             where args = intercalate ", " [show o1, show o2, show o3, show o4]
+
+instance (TextShow o, Typeable o) => TextShow (AST o) where
+    showb (Literal _ident o) = 
+        "Literal(" <> showb o <> " :: " <> showb (typeOf o) <> ")"
+    showb v@(Variable s) = 
+       "Variable(" <> T.fromText s <> " :: " <> showb (typeRep v) <> ")"
+    showb e@(UnaryExpression _ident name o1) = 
+        T.fromText name <> "( " <> args <> " )" <> " :: " <> showb (typeRep e)
+            where args = mconcat $ intersperse ", " [showb o1]
+    showb e@(BinaryExpression _ident _isInfix name o1 o2) = 
+        T.fromText name <> "( " <> args <> " )" <> " :: " <> showb (typeRep e)
+            where args = mconcat $ intersperse ", " $ [showb o1, showb o2]
+    showb e@(TrinaryExpression _ident name o1 o2 o3) = 
+        T.fromText name <> "( " <> args <> " )" <> " :: " <> showb (typeRep e)
+            where args = mconcat $ intersperse ", " [showb o1, showb o2, showb o3]
+    showb e@(QuadrinaryExpression _ident name o1 o2 o3 o4) = 
+        T.fromText name <> "( " <> args <> " )" <> " :: " <> showb (typeRep e)
+            where args = mconcat $ intersperse ", " [showb o1, showb o2, showb o3, showb o4]
 
 drawASTString :: (Show o, Typeable o) => AST o -> String
 drawASTString = unlines . draw

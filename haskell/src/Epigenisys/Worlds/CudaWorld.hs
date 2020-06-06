@@ -27,11 +27,13 @@ import Epigenisys.Language.Stack
 import Epigenisys.Language.Types
 import Epigenisys.Worlds.CudaWorld.Internal.CudaWorld
 import qualified Epigenisys.Worlds.CudaWorld.GeneratedOps.IntegerIntrinsics as IntegerIntrinsics
-
+import qualified Epigenisys.Worlds.CudaWorld.GeneratedOps.SinglePrecisionMathematicalFunctions as SinglePrecisionMathematicalFunctions
+import qualified Epigenisys.Worlds.CudaWorld.GeneratedOps.SinglePrecisionIntrinsics as SinglePrecisionIntrinsics
 data World = 
     World
     { _execStack :: Stack (Exec World)
     , _intStack :: Stack I
+    , _floatStack :: Stack F
     , _identifier :: Int
     } deriving (Generic, Show)
       deriving TextShow via FromGeneric World
@@ -43,6 +45,7 @@ instance HasEmpty World where
         World 
         { _execStack = empty
         , _intStack = empty
+        , _floatStack = empty
         , _identifier = 0
         }
 
@@ -55,15 +58,35 @@ instance HasStackLens World (Exec World) where
 instance HasStackLens World I where
     stackLens = intStack
 
+instance HasStackLens World F where
+    stackLens = floatStack
+
+cudaNamespaceOps :: NamespaceOps World
+cudaNamespaceOps = NamespaceOps (Namespace "Cuda") Nothing ops
+    where ops = 
+            IntegerIntrinsics.i <> 
+            SinglePrecisionMathematicalFunctions.f_i <> 
+            SinglePrecisionMathematicalFunctions.f <> 
+            SinglePrecisionIntrinsics.f 
+
+
 intNamespaceOps :: NamespaceOps World
-intNamespaceOps = NamespaceOps (Namespace "Int") literalParser IntegerIntrinsics.i
+intNamespaceOps = NamespaceOps (Namespace "Int") literalParser []
     where
         intProxy = Proxy :: Proxy I
         literalParser = Just $ fmap (literalOp . C_Int) . textRead (T.signed T.decimal)
 
+floatNamespaceOps :: NamespaceOps World
+floatNamespaceOps = NamespaceOps (Namespace "Float") literalParser []
+    where
+        intProxy = Proxy :: Proxy I
+        literalParser = Just $ fmap (literalOp . C_Float) . textRead (T.signed T.rational)
+
 instance HasNamespaces World where
     getNamespaces = 
-        [ intNamespaceOps
+        [ cudaNamespaceOps
+        , intNamespaceOps
+        , floatNamespaceOps
         ]
 
 doStuff :: IO ()
@@ -90,9 +113,11 @@ doStuff =
         T.putStrLn $ compile $ b4
 
 testProgram :: Text 
-testProgram = "(Int.2)"
+testProgram = "(Int.2 Int.3 Float.3.0 Float.6.9 Cuda.__hadd Cuda.acosf Cuda.__fadd_rn Cuda.isnan)"
         
 doOtherStuff :: IO () 
 doOtherStuff = 
     do
-        printT $ (runLang testProgram :: Either String World)
+        let
+            Right t =  compile . head . unStack . _intStack <$> (runLang testProgram :: Either String World)
+        T.putStrLn t
