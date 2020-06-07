@@ -24,6 +24,6 @@ testProgram4 = "(Integer.1 Integer.2 Integer.+ Integer.convertToFloat2)"
 main :: IO ()
 main = 
     do
-        doStuff
+        --doStuff
         doOtherStuff
 

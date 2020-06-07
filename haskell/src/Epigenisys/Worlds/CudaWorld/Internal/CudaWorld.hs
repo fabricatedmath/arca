@@ -167,7 +167,7 @@ compile ast = T.unlines $ map (`T.append` ";") $ snd $ evalRWS (compile' ast) ()
         gvn n = "a" <> showt n
 
         checkAndCheck :: MonadState IntSet m => Int -> m Bool
-        checkAndCheck i = 
+        checkAndCheck i =
             do
                 s <- get
                 put $ S.insert i s

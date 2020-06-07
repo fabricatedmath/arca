@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
@@ -12,8 +13,11 @@ import Control.Lens
 import Data.Proxy
 
 import Data.Text (Text)
+import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Read as T (decimal, signed, rational)
+
+import Data.Typeable
 
 import GHC.Generics
 
@@ -29,6 +33,7 @@ import Epigenisys.Worlds.CudaWorld.Internal.CudaWorld
 import qualified Epigenisys.Worlds.CudaWorld.GeneratedOps.IntegerIntrinsics as IntegerIntrinsics
 import qualified Epigenisys.Worlds.CudaWorld.GeneratedOps.SinglePrecisionMathematicalFunctions as SinglePrecisionMathematicalFunctions
 import qualified Epigenisys.Worlds.CudaWorld.GeneratedOps.SinglePrecisionIntrinsics as SinglePrecisionIntrinsics
+
 data World = 
     World
     { _execStack :: Stack (Exec World)
@@ -113,11 +118,28 @@ doStuff =
         T.putStrLn $ compile $ b4
 
 testProgram :: Text 
-testProgram = "(Int.2 Int.3 Float.3.0 Float.6.9 Cuda.__hadd Cuda.acosf Cuda.__fadd_rn Cuda.isnan)"
+testProgram = "(Int.2 Int.3 Float.3.0 Float.6.9 Cuda.__hadd Cuda.acosf Cuda.__fadd_rn Cuda.isnan Float.69999)"
+
+printWorld :: World -> Text
+printWorld w = T.intercalate "\n" $ filter (not . T.null) [printStacks (_intStack w), printStacks (_floatStack w)]
+
+printStacks :: forall o. (C_Type o, Show o, TextShow o, Typeable o) => Stack (AST o) -> Text
+printStacks s = "----------------\n" <> stackTypeName <> " Stack\n----------------\n\n" <> string
+    where 
+        stackTypeName = showt (typeRep (Proxy :: Proxy o))
+        string = T.intercalate "\n" . map f . zip [0..] $ unStack $ s
+        f :: (Int, AST o) -> Text
+        f (i,ast) = tabLines $ 
+            stackTypeName <> " Stack Element " <> showt i <> "\n\n" <> tabLines (T.pack (drawASTString ast)) <> "\n" <> tabLines (compile ast)
         
+tabLines :: Text -> Text
+tabLines = T.unlines . map ("\t" <>) . T.lines
+
 doOtherStuff :: IO () 
 doOtherStuff = 
     do
-        let
-            Right t =  compile . head . unStack . _intStack <$> (runLang testProgram :: Either String World)
-        T.putStrLn t
+        let ew = runLang testProgram :: Either String World
+        case ew of
+            Left err -> putStrLn err
+            Right w -> T.putStr $ printWorld w
+                --T.putStrLn $ T.unlines . map compile . unStack . _intStack $ w
