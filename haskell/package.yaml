@@ -25,6 +25,7 @@ dependencies:
 - lens
 - scientific
 - attoparsec
+- random
 - text
 - text-show
 - containers

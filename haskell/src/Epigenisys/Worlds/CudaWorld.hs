@@ -25,10 +25,8 @@ import TextShow
 import TextShow.Generic
 
 import Epigenisys.Language
---import Epigenisys.Language.Ops
 import Epigenisys.Language.Parser
 import Epigenisys.Language.Stack
-import Epigenisys.Language.Types
 import Epigenisys.Worlds.CudaWorld.Internal.CudaWorld
 import qualified Epigenisys.Worlds.CudaWorld.GeneratedOps.IntegerIntrinsics as IntegerIntrinsics
 import qualified Epigenisys.Worlds.CudaWorld.GeneratedOps.SinglePrecisionMathematicalFunctions as SinglePrecisionMathematicalFunctions
@@ -68,24 +66,20 @@ instance HasStackLens World F where
 
 cudaNamespaceOps :: NamespaceOps World
 cudaNamespaceOps = NamespaceOps (Namespace "Cuda") Nothing ops
-    where ops = 
-            IntegerIntrinsics.i <> 
-            SinglePrecisionMathematicalFunctions.f_i <> 
-            SinglePrecisionMathematicalFunctions.f <> 
-            SinglePrecisionIntrinsics.f 
-
+    where ops = mconcat $ 
+                [ IntegerIntrinsics.i
+                , SinglePrecisionMathematicalFunctions.f_i
+                , SinglePrecisionMathematicalFunctions.f
+                , SinglePrecisionIntrinsics.f
+                ]
 
 intNamespaceOps :: NamespaceOps World
-intNamespaceOps = NamespaceOps (Namespace "Int") literalParser []
-    where
-        intProxy = Proxy :: Proxy I
-        literalParser = Just $ fmap (literalOp . C_Int) . textRead (T.signed T.decimal)
+intNamespaceOps = NamespaceOps (Namespace "Int") litParser []
+    where litParser = Just $ fmap (literalOp . C_Int) . textRead (T.signed T.decimal)
 
 floatNamespaceOps :: NamespaceOps World
-floatNamespaceOps = NamespaceOps (Namespace "Float") literalParser []
-    where
-        intProxy = Proxy :: Proxy I
-        literalParser = Just $ fmap (literalOp . C_Float) . textRead (T.signed T.rational)
+floatNamespaceOps = NamespaceOps (Namespace "Float") litParser []
+    where litParser = Just $ fmap (literalOp . C_Float) . textRead (T.signed T.rational)
 
 instance HasNamespaces World where
     getNamespaces = 
@@ -124,13 +118,19 @@ printWorld :: World -> Text
 printWorld w = T.intercalate "\n" $ filter (not . T.null) [printStacks (_intStack w), printStacks (_floatStack w)]
 
 printStacks :: forall o. (C_Type o, Show o, TextShow o, Typeable o) => Stack (AST o) -> Text
-printStacks s = "----------------\n" <> stackTypeName <> " Stack\n----------------\n\n" <> string
+printStacks s = 
+    "----------------\n" <> 
+    stackTypeName <> " Stack\n" <>
+    "----------------\n\n" <> 
+    string
     where 
         stackTypeName = showt (typeRep (Proxy :: Proxy o))
         string = T.intercalate "\n" . map f . zip [0..] $ unStack $ s
         f :: (Int, AST o) -> Text
         f (i,ast) = tabLines $ 
-            stackTypeName <> " Stack Element " <> showt i <> "\n\n" <> tabLines (T.pack (drawASTString ast)) <> "\n" <> tabLines (compile ast)
+            stackTypeName <> " Stack Element " <> showt i <> "\n\n" <> 
+            tabLines (T.pack (drawASTString ast)) <> "\n" <> 
+            tabLines (compile ast)
         
 tabLines :: Text -> Text
 tabLines = T.unlines . map ("\t" <>) . T.lines
@@ -139,7 +139,4 @@ doOtherStuff :: IO ()
 doOtherStuff = 
     do
         let ew = runLang testProgram :: Either String World
-        case ew of
-            Left err -> putStrLn err
-            Right w -> T.putStr $ printWorld w
-                --T.putStrLn $ T.unlines . map compile . unStack . _intStack $ w
+        either putStrLn (T.putStr . printWorld) ew

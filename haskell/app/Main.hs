@@ -5,6 +5,7 @@ module Main where
 --import Epigenisys.Language.Parser (drawLanguageTree, WorldParserMap, parseText, worldParser, opify)
 --import Epigenisys.Worlds.SimpleWorld
 import Epigenisys.Worlds.CudaWorld
+import Epigenisys.Language.Mutate
 
 --import Data.Proxy
 import Data.Text (Text)
@@ -25,5 +26,6 @@ main :: IO ()
 main = 
     do
         --doStuff
-        doOtherStuff
+        --doOtherStuff
+        runStuff
 
