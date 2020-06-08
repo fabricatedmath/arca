@@ -31,7 +31,6 @@ import Data.Word
 import GHC.Generics
 
 import TextShow
-import TextShow.Generic
 
 import Epigenisys.Language.Stack
 import Epigenisys.Language.Types
@@ -251,7 +250,9 @@ class C_Type a where
 
 newtype C_UnsignedInt = C_UnsignedInt Word32
     deriving (Generic, Num, Show)
-    deriving TextShow via FromGeneric C_UnsignedInt
+
+instance TextShow C_UnsignedInt where
+    showb (C_UnsignedInt ui) = showb ui
 
 instance C_Type C_UnsignedInt where
     ctypep _ = "unsigned int"
@@ -259,7 +260,9 @@ instance C_Type C_UnsignedInt where
 
 newtype C_Int = C_Int Int32
     deriving (Generic, Num, Show)
-    deriving TextShow via FromGeneric C_Int
+
+instance TextShow C_Int where
+    showb (C_Int i) = showb i
 
 instance C_Type C_Int where
     ctypep _ = "int"
@@ -267,7 +270,9 @@ instance C_Type C_Int where
 
 newtype C_LongInt = C_LongInt Int64
     deriving (Generic, Num, Show)
-    deriving TextShow via FromGeneric C_LongInt
+
+instance TextShow C_LongInt where
+    showb (C_LongInt li) = showb li
 
 instance C_Type C_LongInt where
     ctypep _ = "long int"
@@ -275,7 +280,9 @@ instance C_Type C_LongInt where
 
 newtype C_LongLongInt = C_LongLongInt Int64
     deriving (Generic, Num, Show)
-    deriving TextShow via FromGeneric C_LongLongInt
+
+instance TextShow C_LongLongInt where
+    showb (C_LongLongInt lli) = showb lli
 
 instance C_Type C_LongLongInt where
     ctypep _ = "long long int"
@@ -283,7 +290,9 @@ instance C_Type C_LongLongInt where
 
 newtype C_UnsignedLongLongInt = C_UnsignedLongLongInt Word64
     deriving (Generic, Num, Show)
-    deriving TextShow via FromGeneric C_UnsignedLongLongInt
+
+instance TextShow C_UnsignedLongLongInt where
+    showb (C_UnsignedLongLongInt ulli) = showb ulli
 
 instance C_Type C_UnsignedLongLongInt where
     ctypep _ = "unsigned long long int"
@@ -291,7 +300,9 @@ instance C_Type C_UnsignedLongLongInt where
 
 newtype C_Float = C_Float Float
     deriving (Fractional, Generic, Num, Show)
-    deriving TextShow via FromGeneric C_Float
+
+instance TextShow C_Float where
+    showb (C_Float f) = showb f
 
 instance C_Type C_Float where
     ctypep _ = "float"
@@ -299,7 +310,9 @@ instance C_Type C_Float where
 
 newtype C_Double = C_Double Double
     deriving (Fractional, Generic, Num, Show)
-    deriving TextShow via FromGeneric C_Double
+
+instance TextShow C_Double where
+    showb (C_Double d) = showb d
 
 instance C_Type C_Double where
     ctypep _ = "double"

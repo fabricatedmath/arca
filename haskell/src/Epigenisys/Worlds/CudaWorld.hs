@@ -10,6 +10,8 @@ module Epigenisys.Worlds.CudaWorld where
 
 import Control.Lens
 
+import Data.Array
+
 import Data.Proxy
 
 import Data.Text (Text)
@@ -24,7 +26,10 @@ import GHC.Generics
 import TextShow
 import TextShow.Generic
 
+import System.Random
+
 import Epigenisys.Language
+import Epigenisys.Language.Mutate
 import Epigenisys.Language.Parser
 import Epigenisys.Language.Stack
 import Epigenisys.Worlds.CudaWorld.Internal.CudaWorld
@@ -64,12 +69,47 @@ instance HasStackLens World I where
 instance HasStackLens World F where
     stackLens = floatStack
 
+worldOps :: Array Int (StackOp World)
+worldOps = 
+    let
+        (NamespaceOps namespace _ pops) = cudaNamespaceOps
+        stackops = map (applyNamespace namespace) pops
+    in listArray (0,length stackops - 1) stackops
+
+instance RandomSampler World (StackOp World) where
+    randomElement =
+        do
+            let 
+                genFloat = do
+                    r <- state $ random
+                    return $ applyNamespace (Namespace "Float") $ literalOp . C_Float $ r
+
+                genInt = do
+                    r <- state $ random
+                    return $ applyNamespace (Namespace "Int") $ literalOp . C_Int $ r
+
+                genLiteral = do
+                    b <- state $ random
+                    case b of
+                        True -> genFloat
+                        False -> genInt
+                                
+                genOp = do
+                    let arr = worldOps
+                    r <- state $ randomR $ bounds arr
+                    return $ arr ! r
+            let thresh = 0.6 :: Double
+            r <- state $ random
+            case () of 
+                _ | r < thresh -> genOp
+                  | otherwise -> genFloat
+
 cudaNamespaceOps :: NamespaceOps World
 cudaNamespaceOps = NamespaceOps (Namespace "Cuda") Nothing ops
     where ops = mconcat $ 
-                [ IntegerIntrinsics.i
-                , SinglePrecisionMathematicalFunctions.f_i
-                , SinglePrecisionMathematicalFunctions.f
+                [ --IntegerIntrinsics.i
+                --, SinglePrecisionMathematicalFunctions.f_i
+                SinglePrecisionMathematicalFunctions.f
                 , SinglePrecisionIntrinsics.f
                 ]
 
@@ -87,6 +127,15 @@ instance HasNamespaces World where
         , intNamespaceOps
         , floatNamespaceOps
         ]
+
+runStuff :: IO ()
+runStuff = 
+    do
+        g <- newStdGen 
+        let t = evalState (generateLanguageTree 10 20) g :: LanguageTree (StackOp World)
+        putStrLn $ drawLanguageTree $ fmap show t
+        T.putStrLn $ showt $ Exec t
+        T.putStr . printWorld $ runProg $ Exec t
 
 doStuff :: IO ()
 doStuff = 

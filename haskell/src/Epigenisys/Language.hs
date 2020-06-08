@@ -3,7 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Epigenisys.Language (
-    Stack(..), Exec(..), HasEmpty(..), runLang,
+    Stack(..), Exec(..), HasEmpty(..), runLang, runProg,
     StackOp(..), textRead, Namespace(..)
     )
 where
@@ -41,9 +41,12 @@ runWorld = do
                 Open ts -> pushListL stackLens $ map Exec ts
             runWorld
 
+runProg :: forall w. (HasNamespaces w, HasStackLens w (Exec w), HasEmpty w) => Exec w -> w
+runProg opTree = do
+    let m = pushL stackLens opTree *> runWorld
+    execState m getEmpty
 
 runLang :: forall w. (HasNamespaces w, HasStackLens w (Exec w), HasEmpty w) => Text -> Either String w
-runLang program =  do
+runLang program = do
     opTree <- Exec <$> parseLang program :: Either String (Exec w)
-    let m = pushL stackLens opTree *> runWorld
-    return $ execState m getEmpty
+    pure $ runProg opTree

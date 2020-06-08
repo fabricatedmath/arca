@@ -6,7 +6,7 @@
 
 module Epigenisys.Language.Parser 
   ( LanguageTree(..), parseLang, textRead, HasNamespaces(..)
-  , NamespaceOps(..), drawLanguageTree
+  , NamespaceOps(..), drawLanguageTree, applyNamespace
   ) where
 
 import Control.Applicative

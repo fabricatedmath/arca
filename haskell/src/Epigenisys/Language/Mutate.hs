@@ -11,10 +11,26 @@ import Data.List (sort)
 import qualified Data.IntSet as S
 
 import System.Random 
+import Data.Proxy 
 import Data.Tree 
+
+import Epigenisys.Language.Parser
 
 class RandomSampler a b | b -> a where
     randomElement :: MonadState StdGen m => m b
+
+generateLanguageTree :: RandomSampler a b => Int -> Int -> State StdGen (LanguageTree b)
+generateLanguageTree bf num = 
+    do
+        tree <- generateTree bf num
+        let
+            replaceTree (Node _ []) =
+                do
+                    Expression <$> randomElement
+            replaceTree (Node _ xs) = 
+                Open <$> mapM replaceTree xs
+        replaceTree tree
+
 
 generateTree :: Int -> Int -> State StdGen (Tree Int)
 generateTree bf = generateTree'
@@ -42,10 +58,13 @@ sumAndBins s b = sampleUnique (b-1) (1,s+b-1)
                         let s' = S.insert r s
                         if S.size s' == (n+2) then return s' else sampleUnique' s' 
 
-runStuff :: IO () 
+{-
+runStuff :: proxy w -> IO () 
 runStuff = 
     do
         g <- newStdGen
         let t = evalState (generateTree 10 20) g
         putStrLn $ drawTree $ fmap show t
+        print $ evalState (generateLanguageTree 10 20) g
         --void $ evalStateT (generateTree 10) g
+        -}

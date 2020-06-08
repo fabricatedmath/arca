@@ -11,6 +11,7 @@ import Data.Proxy (Proxy)
 import Data.Text (Text)
 
 import qualified Data.Text as T
+import qualified Data.Text.Lazy.Builder as T
 
 import GHC.Generics
 
@@ -46,4 +47,4 @@ instance Show (StackOp w) where
   show = T.unpack . showt
 
 instance TextShow (StackOp w) where
-  showb sop = showb (stackOpNamespace sop) <> singleton '.' <> showb (stackOpName sop)
+  showb sop = T.fromText (unNamespace $ stackOpNamespace sop) <> singleton '.' <> T.fromText (unOpName $ stackOpName sop)
