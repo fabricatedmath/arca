@@ -70,11 +70,10 @@ instance HasStackLens World F where
     stackLens = floatStack
 
 worldOps :: Array Int (StackOp World)
-worldOps = 
-    let
+worldOps = listArray (0,length stackops - 1) stackops
+    where
         (NamespaceOps namespace _ pops) = cudaNamespaceOps
         stackops = map (applyNamespace namespace) pops
-    in listArray (0,length stackops - 1) stackops
 
 instance RandomSampler World (StackOp World) where
     randomElement =

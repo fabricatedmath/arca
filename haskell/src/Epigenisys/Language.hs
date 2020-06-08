@@ -22,7 +22,7 @@ newtype Exec w = Exec (LanguageTree (StackOp w))
 
 instance Show (Exec w) where
     show (Exec (Expression a)) = show a
-    show (Exec (Open as)) = "(" ++ unwords (map (show . Exec) as) ++ ")"
+    show (Exec (Open as)) = "(" <> unwords (map (show . Exec) as) <> ")"
 
 instance TextShow (Exec w) where
     showb (Exec (Expression a)) = showb a
