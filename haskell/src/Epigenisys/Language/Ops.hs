@@ -17,8 +17,8 @@ import TextShow
 literalOp :: forall w a. (HasStackLens w a, TextShow a) => Proxy a -> a -> PartialStackOp w
 literalOp _ a = (PartialStackOp (showt a) $ pushL (stackLens :: StackLens w a) a)
 
-convertOp :: forall w a b. (HasStackLens w a, HasStackLens w b) => Proxy (a,b) -> Text -> (a -> b) -> PartialStackOp w
-convertOp _ t f = PartialStackOp t $ convertOp' (stackLens :: StackLens w a) (stackLens :: StackLens w b) f
+convertOp :: forall w a b. (HasStackLens w a, HasStackLens w b) => Text -> (a -> b) -> PartialStackOp w
+convertOp t f = PartialStackOp t $ convertOp' (stackLens :: StackLens w a) (stackLens :: StackLens w b) f
 
 convertOp' :: StackLens w a -> StackLens w b -> (a -> b) -> StackFunc w
 convertOp' la lb f = 

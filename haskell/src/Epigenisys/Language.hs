@@ -4,10 +4,11 @@
 
 module Epigenisys.Language (
     Stack(..), Exec(..), HasEmpty(..), runLang, runProg,
-    StackOp(..), textRead, Namespace(..)
+    StackOp(..), textRead, Namespace(..), dupOp
     )
 where
 
+import Data.Proxy
 import Data.Text (Text)
 import qualified Data.Text.Lazy as T
 
@@ -29,6 +30,14 @@ instance TextShow (Exec w) where
 
 class HasEmpty a where
     getEmpty :: a
+
+dupOp :: forall a w. HasStackLens w a => Proxy a -> PartialStackOp w
+dupOp _ = PartialStackOp "dup" $  do
+    me <- popL (stackLens :: StackLens w a)
+    case me of
+        Nothing -> return ()
+        Just e -> do
+            pushListL stackLens [e,e]
 
 runWorld :: HasStackLens w (Exec w) => State w ()
 runWorld = do

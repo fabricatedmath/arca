@@ -121,18 +121,23 @@ floatNamespaceOps :: NamespaceOps World
 floatNamespaceOps = NamespaceOps (Namespace "Float") litParser []
     where litParser = Just $ fmap (literalOp . C_Float) . textRead (T.signed T.rational)
 
+execNamespaceOps :: NamespaceOps World
+execNamespaceOps = NamespaceOps (Namespace "Exec") Nothing [dupOp execProxy]
+    where execProxy = Proxy :: Proxy (Exec World)
+
 instance HasNamespaces World where
     getNamespaces = 
         [ cudaNamespaceOps
         , intNamespaceOps
         , floatNamespaceOps
+        , execNamespaceOps
         ]
 
 runStuff :: IO ()
 runStuff = 
     do
         g <- newStdGen 
-        let t = evalState (generateLanguageTree 10 20) g :: LanguageTree (StackOp World)
+        let t = evalState (generateLanguageTree 10 30) g :: LanguageTree (StackOp World)
         putStrLn $ drawLanguageTree $ fmap show t
         T.putStrLn $ showt $ Exec t
         T.putStr . printWorld $ runProg $ Exec t
@@ -163,6 +168,9 @@ doStuff =
 testProgram :: Text 
 testProgram = "(Int.2 Int.3 Float.3.0 Float.6.9 Cuda.__hadd Cuda.acosf Cuda.__fadd_rn Cuda.isnan Float.69999)"
 
+testProgram2 :: Text
+testProgram2 = "(Exec.dup (Int.1 Int.2))"
+
 printWorld :: World -> Text
 printWorld w = T.intercalate "\n" $ filter (not . T.null) [printStacks (_intStack w), printStacks (_floatStack w)]
 
@@ -187,5 +195,5 @@ tabLines = T.unlines . map ("\t" <>) . T.lines
 doOtherStuff :: IO () 
 doOtherStuff = 
     do
-        let ew = runLang testProgram :: Either String World
+        let ew = runLang testProgram2 :: Either String World
         either putStrLn (T.putStr . printWorld) ew

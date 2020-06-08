@@ -26,6 +26,6 @@ main :: IO ()
 main = 
     do
         --doStuff
-        --doOtherStuff
-        runStuff
+        doOtherStuff
+        --runStuff
 
