@@ -2,31 +2,37 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Epigenisys.Language.Mutate where
 
 import Control.Monad.State.Strict
 
-import Data.List (sort)
 import qualified Data.IntSet as S
 
 import System.Random 
-import Data.Proxy 
 import Data.Tree 
 
 import Epigenisys.Language.Parser
 
-class RandomSampler a b | b -> a where
-    randomElement :: MonadState StdGen m => m b
-
-generateLanguageTree :: RandomSampler a b => Int -> Int -> State StdGen (LanguageTree b)
-generateLanguageTree bf num = generateTree bf num >>= replaceTree
+-- | Generate a random language sampler, using sampler arg
+generateLanguageTree 
+    :: (MonadState g m, RandomGen g)
+    => m a -- ^ Sampler
+    -> Int -- ^ Branching factor
+    -> Int -- ^ Num leaf nodes
+    -> m (LanguageTree a)
+generateLanguageTree sampler bf num = generateTree bf num >>= replaceTree
     where 
-        replaceTree (Node _ []) = Expression <$> randomElement
+        replaceTree (Node _ []) = Expression <$> sampler
         replaceTree (Node _ xs) = Open <$> mapM replaceTree xs
 
-
-generateTree :: Int -> Int -> State StdGen (Tree Int)
+-- | Generate a random tree, contains sums to be overwritten at each node
+generateTree 
+    :: forall g m. (MonadState g m, RandomGen g)
+    => Int -- ^ Branching Factor
+    -> Int -- ^ Num leaf nodes
+    -> m (Tree Int)
 generateTree bf = generateTree'
     where 
         generateTree' n
@@ -38,11 +44,11 @@ generateTree bf = generateTree'
                     trees <- mapM generateTree' ls
                     pure $ Node n trees
 
-        sumAndBins :: MonadState StdGen m => Int -> Int -> m [Int]
-        sumAndBins s 1 = pure $ [s]
-        sumAndBins s b = sampleUnique (b-1) (1,s+b-1)
+        sumAndBins :: Int -> Int -> m [Int]
+        sumAndBins total 1 = pure $ [total]
+        sumAndBins total b = sampleUnique (b-1) (1,total+b-1)
             where
-                sampleUnique :: (MonadState StdGen m) => Int -> (Int,Int) -> m [Int]
+                sampleUnique :: Int -> (Int,Int) -> m [Int]
                 sampleUnique n range@(l,h) = f . S.toList <$> sampleUnique' (S.fromAscList [l-1,h+1])
                     where 
                         f xs = zipWith (\x y -> y - x - 1) xs $ tail xs

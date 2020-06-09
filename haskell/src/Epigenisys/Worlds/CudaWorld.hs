@@ -75,33 +75,33 @@ worldOps = listArray (0,length stackops - 1) stackops
         (NamespaceOps namespace _ pops) = cudaNamespaceOps
         stackops = map (applyNamespace namespace) pops
 
-instance RandomSampler World (StackOp World) where
-    randomElement =
-        do
-            let 
-                genFloat = do
-                    r <- state $ random
-                    return $ applyNamespace (Namespace "Float") $ literalOp . C_Float $ r
+randomElementSampler :: (MonadState g m, RandomGen g) => m (StackOp World)
+randomElementSampler =
+    do
+        let 
+            genFloat = do
+                r <- state $ random
+                return $ applyNamespace (Namespace "Float") $ literalOp . C_Float $ r
 
-                genInt = do
-                    r <- state $ random
-                    return $ applyNamespace (Namespace "Int") $ literalOp . C_Int $ r
+            genInt = do
+                r <- state $ random
+                return $ applyNamespace (Namespace "Int") $ literalOp . C_Int $ r
 
-                genLiteral = do
-                    b <- state $ random
-                    case b of
-                        True -> genFloat
-                        False -> genInt
-                                
-                genOp = do
-                    let arr = worldOps
-                    r <- state $ randomR $ bounds arr
-                    return $ arr ! r
-            let thresh = 0.6 :: Double
-            r <- state $ random
-            case () of 
-                _ | r < thresh -> genOp
-                  | otherwise -> genFloat
+            genLiteral = do
+                b <- state $ random
+                case b of
+                    True -> genFloat
+                    False -> genInt
+                            
+            genOp = do
+                let arr = worldOps
+                r <- state $ randomR $ bounds arr
+                return $ arr ! r
+        let thresh = 0.6 :: Double
+        r <- state $ random
+        case () of 
+            _ | r < thresh -> genOp
+                | otherwise -> genFloat
 
 cudaNamespaceOps :: NamespaceOps World
 cudaNamespaceOps = NamespaceOps (Namespace "Cuda") Nothing ops
@@ -135,8 +135,9 @@ instance HasNamespaces World where
 runStuff :: IO ()
 runStuff = 
     do
+        let s = randomElementSampler
         g <- newStdGen 
-        let t = evalState (generateLanguageTree 10 30) g :: LanguageTree (StackOp World)
+        let t = evalState (generateLanguageTree s 10 30) g :: LanguageTree (StackOp World)
         putStrLn $ drawLanguageTree $ fmap show t
         T.putStrLn $ showt $ Exec t
         T.putStr . printWorld $ runProg $ Exec t
