@@ -3,9 +3,9 @@
 
 module Epigenisys.Worlds.CudaWorld.GeneratedOps.SinglePrecisionMathematicalFunctions where
 
-import Epigenisys.Worlds.CudaWorld.Internal.CudaWorld
 import Epigenisys.Language.Stack
 import Epigenisys.Language.Types
+import Epigenisys.Worlds.CudaWorld.Internal
 
 -- | Exported Lists
 

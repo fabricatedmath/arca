@@ -12,13 +12,14 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Epigenisys.Worlds.CudaWorld.Internal.AST 
-    ( AST(..), compile, drawASTString, literalOp
+    ( AST(..), compile, drawASTString
     , C_Type(..), HasIdentifier(..)
     , ToExpression, OpIn, OpOut
     , Opify(..), Op(..)
     , OneArg, TwoArg, ThreeArg, FourArg
+    , ratchetId
     ) where
-        
+
 import Control.Lens
 import Control.Monad.RWS.Strict
 
@@ -41,13 +42,6 @@ class HasIdentifier w where
 
 ratchetId :: HasIdentifier w => State w Int
 ratchetId = idLens %%= (\i -> (i,i+1))
-
--- | Helper to build stack op that drops 'a' value into an 'AST a' literal
-literalOp :: forall a w. (TextShow a, HasIdentifier w, HasStackLens w (AST a)) => a -> PartialStackOp w
-literalOp a = PartialStackOp (showt a) $ 
-    do
-        i <- ratchetId
-        pushL (stackLens :: StackLens w (AST a)) $ Literal i a
 
 data AST o where
     Literal :: Int -> o -> AST o
@@ -261,7 +255,7 @@ prefixOp = Op False
 ctype :: C_Type a => a -> Text
 ctype = ctypep . Just
 
-class C_Type a where
+class (Show a, TextShow a, Typeable a) => C_Type a where
     -- | Name of c type in c language, e.g. "unsigned long long int"
     ctypep :: proxy a -> Text
     -- | Text representation of value, e.g. "395" or "2"

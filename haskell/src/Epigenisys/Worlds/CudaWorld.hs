@@ -32,7 +32,8 @@ import Epigenisys.Language
 import Epigenisys.Language.Mutate
 import Epigenisys.Language.Parser
 import Epigenisys.Language.Stack
-import Epigenisys.Worlds.CudaWorld.Internal.CudaWorld
+import Epigenisys.Worlds.CudaWorld.Internal
+import Epigenisys.Worlds.CudaWorld.Ops
 import qualified Epigenisys.Worlds.CudaWorld.GeneratedOps.IntegerIntrinsics as IntegerIntrinsics
 import qualified Epigenisys.Worlds.CudaWorld.GeneratedOps.SinglePrecisionMathematicalFunctions as SinglePrecisionMathematicalFunctions
 import qualified Epigenisys.Worlds.CudaWorld.GeneratedOps.SinglePrecisionIntrinsics as SinglePrecisionIntrinsics
@@ -105,7 +106,8 @@ randomElementSampler =
 
 cudaNamespaceOps :: NamespaceOps World
 cudaNamespaceOps = NamespaceOps (Namespace "Cuda") Nothing ops
-    where ops = mconcat $ 
+    where
+        ops = mconcat $ 
                 [ --IntegerIntrinsics.i
                 --, SinglePrecisionMathematicalFunctions.f_i
                 SinglePrecisionMathematicalFunctions.f
@@ -113,12 +115,26 @@ cudaNamespaceOps = NamespaceOps (Namespace "Cuda") Nothing ops
                 ]
 
 intNamespaceOps :: NamespaceOps World
-intNamespaceOps = NamespaceOps (Namespace "Int") litParser []
-    where litParser = Just $ fmap (literalOp . C_Int) . textRead (T.signed T.decimal)
+intNamespaceOps = NamespaceOps (Namespace "Int") litParser intOps
+    where 
+        litParser = Just $ fmap (literalOp . C_Int) . textRead (T.signed T.decimal)
+        intOps = 
+            [ addOp ip
+            , subtractOp ip
+            , multiplyOp ip
+            , divideOp ip
+            ] where ip = Proxy :: Proxy C_Int
 
 floatNamespaceOps :: NamespaceOps World
-floatNamespaceOps = NamespaceOps (Namespace "Float") litParser []
-    where litParser = Just $ fmap (literalOp . C_Float) . textRead (T.signed T.rational)
+floatNamespaceOps = NamespaceOps (Namespace "Float") litParser floatOps
+    where 
+        litParser = Just $ fmap (literalOp . C_Float) . textRead (T.signed T.rational)
+        floatOps = 
+            [ addOp fp
+            , subtractOp fp
+            , multiplyOp fp
+            , divideOp fp
+            ] where fp = Proxy :: Proxy C_Float
 
 execNamespaceOps :: NamespaceOps World
 execNamespaceOps = NamespaceOps (Namespace "Exec") Nothing [dupOp execProxy]
@@ -171,6 +187,9 @@ testProgram = "(Int.2 Int.3 Float.3.0 Float.6.9 Cuda.__hadd Cuda.acosf Cuda.__fa
 testProgram2 :: Text
 testProgram2 = "(Exec.dup (Int.1 Int.2))"
 
+testProgram3 :: Text
+testProgram3 = "(Float.1 Float.2 Float.+ Float.8 Float./ Int.1 Int.3 Int.*)"
+
 printWorld :: World -> Text
 printWorld w = T.intercalate "\n" $ filter (not . T.null) [printStacks (_intStack w), printStacks (_floatStack w)]
 
@@ -195,5 +214,5 @@ tabLines = T.unlines . map ("\t" <>) . T.lines
 doOtherStuff :: IO () 
 doOtherStuff = 
     do
-        let ew = runLang testProgram2 :: Either String World
+        let ew = runLang testProgram3 :: Either String World
         either putStrLn (T.putStr . printWorld) ew
