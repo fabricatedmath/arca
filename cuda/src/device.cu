@@ -4,7 +4,7 @@
 
 __device__
 int device_call() {
-    printf("dogs\n");
+    //printf("dogs\n");
     return 5;
 }
 

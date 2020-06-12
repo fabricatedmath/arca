@@ -41,7 +41,8 @@ set_target_properties( somethingLib
 #target_compile_options(something PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--ptxas-options=-v -gencode arch=compute_75,code=sm_75>) 
 target_compile_options(somethingLib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
     --ptxas-options=-v 
-    -gencode arch=compute_75,code=sm_75> 
+    -gencode arch=compute_75,code=sm_75>
+#    -rdc=true 
     --keep
     ) 
 
