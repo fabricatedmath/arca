@@ -31,3 +31,11 @@ multiplyOp _ = opify (Op True "*" :: Op (TwoArg o o) (OneArg o))
 
 divideOp :: forall a o w. (o ~ AST a, C_Type a, HasIdentifier w, HasStackLens w o) => Proxy a -> PartialStackOp w
 divideOp _ = opify (Op True "/" :: Op (TwoArg o o) (OneArg o))
+
+dupOp :: forall a w. HasStackLens w a => Proxy a -> PartialStackOp w
+dupOp _ = PartialStackOp "dup" $  do
+    me <- popL (stackLens :: StackLens w a)
+    case me of
+        Nothing -> return ()
+        Just e -> do
+            pushListL stackLens [e,e]
