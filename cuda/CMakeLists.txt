@@ -77,6 +77,8 @@ set_property(TARGET something
              PROPERTY CUDA_SEPARABLE_COMPILATION ON)
 target_link_libraries( something
     somethingLib
+    cuda
+    nvrtc
 )
 
 

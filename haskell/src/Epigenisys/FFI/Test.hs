@@ -1,11 +1,15 @@
 module Epigenisys.FFI.Test where
 
+import Data.Text (Text)
+import qualified Data.Text.Foreign as T
+
 import Foreign.C.String
 
-testFunc :: String -> IO ()
+testFunc :: Text -> IO ()
 testFunc s = 
     do
-        withCAString s c_test
+        T.withCStringLen s $ uncurry c_test
+                --withCAString s c_test
 
 foreign import ccall safe "test" c_test
-    :: CString -> IO ()
+    :: CString -> Int -> IO ()

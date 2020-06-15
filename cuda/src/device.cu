@@ -4,7 +4,9 @@
 
 __device__
 int device_call() {
-    //printf("dogs\n");
-    return 5;
+    if (threadIdx.x == 0) {
+        printf("cats\n");
+    }
+    return 7;
 }
 
