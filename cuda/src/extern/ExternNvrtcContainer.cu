@@ -1,8 +1,8 @@
 #include "ExternNvrtcContainer.cuh"
 
 extern "C" {
-    NvrtcContainer* nvrtcContainerNew() {
-        return new NvrtcContainer();
+    NvrtcContainer* nvrtcContainerNew(CUContextContainer* cuContextContainer) {
+        return new NvrtcContainer(cuContextContainer);
     }
 
     void nvrtcContainerInit() {
@@ -13,8 +13,8 @@ extern "C" {
         return nvrtcContainer->compile(str,strLen);
     }
 
-    void nvrtcContainerRun(NvrtcContainer* nvrtcContainer) {
-        return nvrtcContainer->run();
+    void nvrtcContainerRun(NvrtcContainer* nvrtcContainer, const int numBlocks, const int numThreads) {
+        return nvrtcContainer->run(numBlocks, numThreads);
     }
 
     void nvrtcContainerDelete(NvrtcContainer* nvrtcContainer) {

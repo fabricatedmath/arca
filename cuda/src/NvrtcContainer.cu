@@ -7,6 +7,8 @@
 #define CUDA_DRIVER_API
 
 #include <helper_cuda.h>
+#include <chrono>
+using namespace std::chrono;
 
 using namespace std;
 
@@ -20,15 +22,20 @@ using namespace std;
     }                                                           \
   } while (0)
 
-NvrtcContainer::NvrtcContainer() : hModule(0), hKernel(0) {}
+NvrtcContainer::NvrtcContainer(CUContextContainer* cuContextContainer) : hModule(0), hKernel(0) {
+    cuCtxSetCurrent(*cuContextContainer->getCtx());
+}
 
 void NvrtcContainer::init() {
     checkCudaErrors( cuInit(0) );
+    cudaSetDevice(0);
 }
 
 bool NvrtcContainer::compile(const char* str, const int strlen) {
+    string progStr(str,strlen);
+    auto t0 = steady_clock::now();
     nvrtcProgram prog;
-    NVRTC_SAFE_CALL("nvrtcCreateProgram", nvrtcCreateProgram(&prog, str, "device.cu", 0, NULL, NULL) );
+    NVRTC_SAFE_CALL("nvrtcCreateProgram", nvrtcCreateProgram(&prog, progStr.c_str(), "device.cu", 0, NULL, NULL) );
     const char *opts[] = {}; //{"--ptxas-options -v"}; //{"-rdc=true", "--ptxas-options -v"};
     nvrtcResult compileResult = nvrtcCompileProgram(prog, 0, opts); 
 
@@ -37,6 +44,7 @@ bool NvrtcContainer::compile(const char* str, const int strlen) {
     char *log = new char[logSize2];
     NVRTC_SAFE_CALL("nvrtcGetProgramLog", nvrtcGetProgramLog(prog, log) );
     std::cout << log << '\n';
+    //std::err << log << '\n';
     delete[] log;
 
     if (compileResult != NVRTC_SUCCESS) {
@@ -48,9 +56,12 @@ bool NvrtcContainer::compile(const char* str, const int strlen) {
     NVRTC_SAFE_CALL( "nvrtcGetPTXSize", nvrtcGetPTXSize(prog, &ptxSize) );
     char *ptx = new char[ptxSize];
     NVRTC_SAFE_CALL( "nvrtcGetPTX", nvrtcGetPTX(prog, ptx) );
-    cout << ptx << endl;
+    auto t1 = steady_clock::now();
+    //cout << ptx << endl;
 
+    auto t2 = steady_clock::now();
     CUlinkState lState;
+    
     CUjit_option options[6];
     void *optionVals[6];
 
@@ -79,22 +90,16 @@ bool NvrtcContainer::compile(const char* str, const int strlen) {
     optionVals[5] = (void *)1;
 
     CUlinkState *plState = &lState;
-
-    //checkCudaErrors( cuInit(0) );
-    //cudaSetDevice(0);
-    CUdevice cuDevice;
-    checkCudaErrors( cuDeviceGet(&cuDevice, 0) );
-    CUcontext context;
-    checkCudaErrors( cuCtxCreate(&context, 0, cuDevice) );
     checkCudaErrors( cuLinkCreate(6, options, optionVals, plState) );
+    //checkCudaErrors( cuLinkCreate(0, 0, 0, plState) );
     checkCudaErrors( cuLinkAddData(*plState, CU_JIT_INPUT_PTX, (void *)ptx, ptxSize+1, "device.ptx", 0, 0, 0) );
-    printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
+    //printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
     
     delete ptx;
 
-    printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
+    //printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
 
-    printf("CUDA Link Completed in %fms. Linker Error Output:\n%s\n", walltime, error_log);
+    //printf("CUDA Link Completed in %fms. Linker Error Output:\n%s\n", walltime, error_log);
 
     void* cuOut;
     size_t outSize;
@@ -112,16 +117,20 @@ bool NvrtcContainer::compile(const char* str, const int strlen) {
     checkCudaErrors( cuModuleGetFunction(&hKernel, hModule, "kernel") );
     checkCudaErrors( cuLinkDestroy(*plState) );
 
-    printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
+    //printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
 
-    printf("CUDA Link Completed in %fms. Linker Error Output:\n%s\n", walltime, error_log);
+    //printf("CUDA Link Completed in %fms. Linker Error Output:\n%s\n", walltime, error_log);
 
+    auto t3 = steady_clock::now();
+
+    cout << duration_cast<milliseconds>(t1-t0).count() << endl;
+    cout << duration_cast<milliseconds>(t3-t2).count() << endl;
     return true;
 }
 
-void NvrtcContainer::run() {
-    int nThreads = 32;
-    int nBlocks = 1;
+void NvrtcContainer::run(const int numBlocks, const int numThreads) {
+    int nThreads = numThreads;
+    int nBlocks = numBlocks;
     dim3 block(nThreads, 1, 1);
     dim3 grid(nBlocks, 1, 1);
   

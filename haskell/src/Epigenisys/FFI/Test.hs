@@ -2,9 +2,15 @@
 
 module Epigenisys.FFI.Test where
 
+import Control.Concurrent
+import Control.Concurrent.Async
+import Control.Concurrent.Chan
+import Control.Monad (replicateM_,when)
+
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Foreign as T
+import Data.Time
 
 import Foreign.C.String
 
@@ -13,21 +19,25 @@ import Foreign.Ptr
 
 import Foreign.Marshal.Alloc
 
+import Epigenisys.FFI.CUContextContainer
+
 data NvrtcContainerHandle
 
 data NvrtcContainer =
   NvrtcContainer
-  { _nvrtcContainerFPtr :: ForeignPtr NvrtcContainerHandle
+  { _nvrtcContainer :: ForeignPtr NvrtcContainerHandle
   }
 
 globalFunc :: Text
 globalFunc = 
     T.unlines 
-    [ "__global__"
+    [ "extern \"C\" {"
+    , "__global__"
     , "void kernel() {"
     , "  if (threadIdx.x == 0) {"
-    , "    printf(\"%d\\n\", threadIdx.x);"
+    , "    printf(\"dogs:%d\\n\", threadIdx.x);"
     , "  }"
+    , "}"
     , "}"
     ]
 
@@ -44,15 +54,16 @@ deviceFunc2 =
     , "}"
     ]
 
-
 globalFunc2 :: Text
 globalFunc2 = 
     T.unlines 
     [ "extern \"C\" {"
     , "__global__"
     , "void kernel() {"
-    , "  if (threadIdx.x == 0) {"
-    , "    printf(\"%d\\n\", threadIdx.x);"
+    , "  for (int i = 0; i < blockDim.x; i++) {"
+    , "  if (threadIdx.x == i) {"
+    , "    printf(\"%d\\n\", i);"
+    , "  }"
     , "  }"
     , "  call();"
     , "}"
@@ -62,46 +73,80 @@ globalFunc2 =
 run :: IO ()
 run = 
     do
+        cuCtx <- newCUContextContainer
+        getNumCapabilities >>= print
+        let prog1 = (deviceFunc2 <> globalFunc2)
+            prog2 = globalFunc
         c_nvrtcContainerInit
-        nvrtcContainer <- newNvrtcContainer
-        b <- compileNvrtcContainer nvrtcContainer (deviceFunc2 <> globalFunc2)
-        runNvrtcContainer nvrtcContainer
+        start <- getCurrentTime
+        nvrtcContainer <- newNvrtcContainer cuCtx
+        b1 <- compileNvrtcContainer nvrtcContainer prog1
+        nvrtcContainer2 <- newNvrtcContainer cuCtx
+        b2 <- compileNvrtcContainer nvrtcContainer2 prog2
+        end <- getCurrentTime
+        print (diffUTCTime end start)
+
+        chan <- newChan
+
+        replicateM_ 100 $ forkOS $ 
+            do
+                start <- getCurrentTime
+                threadId <- myThreadId
+                --cuCtx2 <- newCUContextContainer
+                threadCapability threadId >>= print
+                --threadCapability 
+                n <- getNumCapabilities
+                putStrLn $ "num capabilities: " <> show n
+                print "failed"
+                c_nvrtcContainerInit
+                print "running"
+                nvrtcContainer <- newNvrtcContainer cuCtx
+                print "running2"
+                b3 <- compileNvrtcContainer nvrtcContainer prog1
+                print "running3"
+                writeChan chan ()
+                end <- getCurrentTime
+                print (diffUTCTime end start)
+                if b3 then runNvrtcContainer nvrtcContainer 1 1024 else print "couldnt run 3"
+                --print "ran"
+        replicateM_ 100 (readChan chan)
+        --if b1 then runNvrtcContainer nvrtcContainer 1 32 else print "couldnt run 1"
+        --if b2 then runNvrtcContainer nvrtcContainer2 1 32 else print "couldnt run 2"
 
 
-newNvrtcContainer :: IO NvrtcContainer
-newNvrtcContainer = 
+newNvrtcContainer :: CUContextContainer -> IO NvrtcContainer
+newNvrtcContainer cuContextContainerHandle = 
     do
-        nvrtcContainerFPtr <- c_nvrtcContainerNew >>= newForeignPtr c_nvrtcContainerDelete
-        return $ NvrtcContainer nvrtcContainerFPtr
+        withForeignPtr (_cuContextContainerHandle cuContextContainerHandle) (\ctxPtr -> 
+            do
+                nvrtcContainerHandle <- c_nvrtcContainerNew ctxPtr >>= newForeignPtr c_nvrtcContainerDelete
+                return $ NvrtcContainer nvrtcContainerHandle
+            )
 
 compileNvrtcContainer :: NvrtcContainer -> Text -> IO Bool
 compileNvrtcContainer container prog = 
-    do
-        withForeignPtr (_nvrtcContainerFPtr container) (\containerPtr -> 
-            do
+        withForeignPtr (_nvrtcContainer container) (\containerPtr -> 
                 T.withCStringLen prog $ uncurry (c_nvrtcContainerCompile containerPtr)
          )
 
-runNvrtcContainer :: NvrtcContainer -> IO ()
-runNvrtcContainer container = 
-    do
-        withForeignPtr (_nvrtcContainerFPtr container) (\containerPtr -> 
-            do
-                c_nvrtcContainerRun containerPtr
+runNvrtcContainer :: NvrtcContainer -> Int -> Int -> IO ()
+runNvrtcContainer container numBlocks numThreads = 
+        withForeignPtr (_nvrtcContainer container) (\containerPtr -> 
+                c_nvrtcContainerRun containerPtr numBlocks numThreads
          )
 
 
-foreign import ccall safe "nvrtcContainerNew" c_nvrtcContainerNew
-    :: IO (Ptr NvrtcContainerHandle)
+foreign import ccall unsafe "nvrtcContainerNew" c_nvrtcContainerNew
+    :: Ptr CUContextContainerHandle -> IO (Ptr NvrtcContainerHandle)
 
-foreign import ccall safe "nvrtcContainerInit" c_nvrtcContainerInit
+foreign import ccall unsafe "nvrtcContainerInit" c_nvrtcContainerInit
     :: IO ()
 
-foreign import ccall safe "nvrtcContainerCompile" c_nvrtcContainerCompile
+foreign import ccall unsafe "nvrtcContainerCompile" c_nvrtcContainerCompile
     :: Ptr NvrtcContainerHandle -> CString -> Int -> IO Bool
 
-foreign import ccall safe "nvrtcContainerRun" c_nvrtcContainerRun
-    :: Ptr NvrtcContainerHandle -> IO ()
+foreign import ccall unsafe "nvrtcContainerRun" c_nvrtcContainerRun
+    :: Ptr NvrtcContainerHandle -> Int -> Int -> IO ()
 
-foreign import ccall safe "&nvrtcContainerDelete" c_nvrtcContainerDelete
+foreign import ccall unsafe "&nvrtcContainerDelete" c_nvrtcContainerDelete
     :: FinalizerPtr NvrtcContainerHandle
