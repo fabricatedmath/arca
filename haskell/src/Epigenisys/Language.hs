@@ -8,7 +8,6 @@ module Epigenisys.Language (
     )
 where
 
-import Data.Proxy
 import Data.Text (Text)
 import qualified Data.Text.Lazy as T
 

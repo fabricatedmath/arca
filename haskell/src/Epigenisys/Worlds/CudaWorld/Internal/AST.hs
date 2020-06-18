@@ -164,8 +164,8 @@ compile ast = T.unlines $ map (`T.append` ";") $ snd $ evalRWS (compile' ast) ()
         gvn :: Int -> Text
         gvn n = "a" <> showt n
 
-        checkAndCheck :: MonadState IntSet m => Int -> m Bool
-        checkAndCheck i =
+        checkAndAdd :: MonadState IntSet m => Int -> m Bool
+        checkAndAdd i =
             do
                 s <- get
                 put $ S.insert i s
@@ -174,14 +174,14 @@ compile ast = T.unlines $ map (`T.append` ";") $ snd $ evalRWS (compile' ast) ()
         compile' :: (C_Type o, TextShow o, Typeable o) => AST o -> CompileMonad Text
         compile' (Literal i o) = 
             do
-                b <- checkAndCheck i
+                b <- checkAndAdd i
                 let var = gvn i
                 unless b $ tell $ pure $ ctype o <> " " <> var <> " = " <> cval o
                 pure var
         compile' (Variable s) = pure s
         compile' e@(UnaryExpression i name o) = 
             do
-                b <- checkAndCheck i
+                b <- checkAndAdd i
                 let var = gvn i
                 unless b $ 
                     do
@@ -193,7 +193,7 @@ compile ast = T.unlines $ map (`T.append` ";") $ snd $ evalRWS (compile' ast) ()
                 pure var
         compile' e@(BinaryExpression i isInfix name o1 o2) = 
             do
-                b <- checkAndCheck i
+                b <- checkAndAdd i
                 let var = gvn i
                 unless b $ 
                     do
@@ -207,7 +207,7 @@ compile ast = T.unlines $ map (`T.append` ";") $ snd $ evalRWS (compile' ast) ()
                 pure var
         compile' e@(TrinaryExpression i name o1 o2 o3) = 
             do
-                b <- checkAndCheck i
+                b <- checkAndAdd i
                 let var = gvn i
                 unless b $ 
                     do
@@ -221,7 +221,7 @@ compile ast = T.unlines $ map (`T.append` ";") $ snd $ evalRWS (compile' ast) ()
                 pure var
         compile' e@(QuadrinaryExpression i name o1 o2 o3 o4) = 
             do
-                b <- checkAndCheck i
+                b <- checkAndAdd i
                 let var = gvn i
                 unless b $ 
                     do
@@ -245,12 +245,6 @@ data Op i o =
     { opIsInfix :: Bool
     , opName :: Text
     }
-
-infixOp :: Text -> Op i o
-infixOp = Op True
-
-prefixOp :: Text -> Op i o
-prefixOp = Op False
 
 ctype :: C_Type a => a -> Text
 ctype = ctypep . Just
