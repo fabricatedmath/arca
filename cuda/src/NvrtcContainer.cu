@@ -1,16 +1,14 @@
+#include "NvrtcContainer.cuh"
+
 #include <iostream>
 
-#include <cuda.h>
-#include <cuda_runtime.h>
 #include <nvrtc.h>
-
-using namespace std;
-
-#include "global.cuh"
 
 #define CUDA_DRIVER_API
 
 #include <helper_cuda.h>
+
+using namespace std;
 
 #define NVRTC_SAFE_CALL(Name, x)                                \
   do {                                                          \
@@ -22,23 +20,17 @@ using namespace std;
     }                                                           \
   } while (0)
 
-const char *saxpy = "                                           \n\
- __device__                                         \n\
-int device_call()                                               \n\
-{                                                               \n\
-    if (threadIdx.x == 0) {                                     \n\
-        printf(\"llama\\n\");                                     \n\
-    }                                                           \n\
-    return 7;                                                    \n\
-  } \n\
-                                                              \n";
+NvrtcContainer::NvrtcContainer() : hModule(0), hKernel(0) {}
 
-int main() {
-  //call();
+void NvrtcContainer::init() {
+    checkCudaErrors( cuInit(0) );
+}
+
+bool NvrtcContainer::compile(const char* str, const int strlen) {
     nvrtcProgram prog;
-    NVRTC_SAFE_CALL("nvrtcCreateProgram", nvrtcCreateProgram(&prog, saxpy, "device.cu", 0, NULL, NULL) );
-    const char *opts[] = {"-rdc=true"};
-    nvrtcResult compileResult = nvrtcCompileProgram(prog, 1, opts); 
+    NVRTC_SAFE_CALL("nvrtcCreateProgram", nvrtcCreateProgram(&prog, str, "device.cu", 0, NULL, NULL) );
+    const char *opts[] = {}; //{"--ptxas-options -v"}; //{"-rdc=true", "--ptxas-options -v"};
+    nvrtcResult compileResult = nvrtcCompileProgram(prog, 0, opts); 
 
     size_t logSize2;
     NVRTC_SAFE_CALL("nvrtcGetProgramLogSize", nvrtcGetProgramLogSize(prog, &logSize2) );
@@ -48,7 +40,8 @@ int main() {
     delete[] log;
 
     if (compileResult != NVRTC_SUCCESS) {
-      exit(1);
+      cout << "failed to compile" << endl;
+      return false;
     }
 
     size_t ptxSize;
@@ -87,7 +80,7 @@ int main() {
 
     CUlinkState *plState = &lState;
 
-    checkCudaErrors( cuInit(0) );
+    //checkCudaErrors( cuInit(0) );
     //cudaSetDevice(0);
     CUdevice cuDevice;
     checkCudaErrors( cuDeviceGet(&cuDevice, 0) );
@@ -96,10 +89,8 @@ int main() {
     checkCudaErrors( cuLinkCreate(6, options, optionVals, plState) );
     checkCudaErrors( cuLinkAddData(*plState, CU_JIT_INPUT_PTX, (void *)ptx, ptxSize+1, "device.ptx", 0, 0, 0) );
     printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
-    checkCudaErrors( cuLinkAddFile(*plState, CU_JIT_INPUT_PTX, "build/global.ptx", 0, 0, 0) );
-    //checkCudaErrors( cuLinkAddFile(*plState, CU_JIT_INPUT_PTX, "build/device.ptx", 0, 0, 0) );
     
-
+    delete ptx;
 
     printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
 
@@ -114,23 +105,21 @@ int main() {
     printf("CUDA Link Completed in %fms. Linker Error Output:\n%s\n", walltime, error_log);
 
     if (curesult != CUDA_SUCCESS) {
-      exit(1);
+        return false;
     }
 
-    CUmodule hModule = 0;
-    CUfunction hKernel = 0;
-
-    CUmodule* phModule = &hModule;
-    CUfunction* phKernel = &hKernel;
-
-    checkCudaErrors( cuModuleLoadData(phModule, cuOut) );
-    checkCudaErrors( cuModuleGetFunction(phKernel, *phModule, "kernel") );
+    checkCudaErrors( cuModuleLoadData(&hModule, cuOut) );
+    checkCudaErrors( cuModuleGetFunction(&hKernel, hModule, "kernel") );
     checkCudaErrors( cuLinkDestroy(*plState) );
 
     printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
 
     printf("CUDA Link Completed in %fms. Linker Error Output:\n%s\n", walltime, error_log);
 
+    return true;
+}
+
+void NvrtcContainer::run() {
     int nThreads = 32;
     int nBlocks = 1;
     dim3 block(nThreads, 1, 1);
@@ -140,7 +129,9 @@ int main() {
   
     checkCudaErrors( cuLaunchKernel(hKernel, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, NULL, args, NULL) );
     cudaDeviceSynchronize();
+}
 
+NvrtcContainer::~NvrtcContainer() {
     if (hModule) {
         checkCudaErrors( cuModuleUnload(hModule) );
         hModule = 0;

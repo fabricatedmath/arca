@@ -13,12 +13,14 @@ set(CMAKE_CXX_STANDARD 17)
 
 file(GLOB cuda_source_files
     "${SOMETHING_SOURCE_DIR}/src/*.cu"
-    #"${SOMETHING_SOURCE_DIR}/src/extern/*.cu"
+    "${SOMETHING_SOURCE_DIR}/src/examples/*.cu"
+    "${SOMETHING_SOURCE_DIR}/src/extern/*.cu"
 )
 
 include_directories(
     ${SOMETHING_SOURCE_DIR}/src
-    #${SOMETHING_SOURCE_DIR}/src/extern
+    ${SOMETHING_SOURCE_DIR}/src/examples
+    ${SOMETHING_SOURCE_DIR}/src/extern
 )
 
 #add_library(somethingPTX OBJECT ${cuda_source_files})
@@ -77,6 +79,11 @@ set_property(TARGET something
              PROPERTY CUDA_SEPARABLE_COMPILATION ON)
 target_link_libraries( something
     somethingLib
+    cuda
+    nvrtc
+)
+
+target_link_libraries( somethingLib
     cuda
     nvrtc
 )

@@ -8,4 +8,4 @@ main :: IO ()
 main = 
     do
         print "dogs"
-        testFunc "cats"
+        run
