@@ -12,6 +12,8 @@ import Control.Lens
 
 import Data.Array
 
+import Data.Maybe (listToMaybe)
+
 import Data.Proxy
 
 import Data.Text (Text)
@@ -158,6 +160,17 @@ runStuff =
         T.putStrLn $ showt $ Exec t
         T.putStr . printWorld $ runProg $ Exec t
 
+generateRandomWorld :: IO World
+generateRandomWorld = 
+    do
+        let s = randomElementSampler
+        g <- newStdGen 
+        let t = evalState (generateLanguageTree s 10 30) g :: LanguageTree (StackOp World)
+        --putStrLn $ drawLanguageTree $ fmap show t
+        --T.putStrLn $ showt $ Exec t
+        return $ runProg $ Exec t
+
+{-
 doStuff :: IO ()
 doStuff = 
     do
@@ -175,11 +188,12 @@ doStuff =
             u2 = UnaryExpression 5 "abs" l1 :: AST C_Int
             b3 = BinaryExpression 6 True "+" u2 u2 :: AST C_UnsignedLongLongInt
             b4 = BinaryExpression 7 True "*" b3 u2 :: AST C_Int
-        T.putStrLn $ compile $ u2
+        T.putStrLn $ snd $ compile $ u2
         putStrLn $ drawASTString b2
-        T.putStrLn $ compile $ b2
+        T.putStrLn $ snd $ compile $ b2
         putStrLn $ drawASTString b4
-        T.putStrLn $ compile $ b4
+        T.putStrLn $ snd $ compile $ b4
+        -}
 
 testProgram :: Text 
 testProgram = "(Int.2 Int.3 Float.3.0 Float.6.9 Cuda.__hadd Cuda.acosf Cuda.__fadd_rn Cuda.isnan Float.69999)"
@@ -203,13 +217,22 @@ printStacks s =
         stackTypeName = showt (typeRep (Proxy :: Proxy o))
         string = T.intercalate "\n" . map f . zip [0..] $ unStack $ s
         f :: (Int, AST o) -> Text
-        f (i,ast) = tabLines $ 
-            stackTypeName <> " Stack Element " <> showt i <> "\n\n" <> 
-            tabLines (T.pack (drawASTString ast)) <> "\n" <> 
-            tabLines (compile ast)
+        f (i,ast) = 
+                tabLines $ 
+                stackTypeName <> " Stack Element " <> showt i <> "\n\n" <> 
+                tabLines (T.pack (drawASTString ast)) <> "\n" <> 
+                (T.unlines . map ("\t" <>) $ codeLines <> ["return " <> a <> ";"])
+                    where (a,codeLines) = compile ast
         
 tabLines :: Text -> Text
 tabLines = T.unlines . map ("\t" <>) . T.lines
+
+generateACudaProgram :: World -> Maybe [Text]
+generateACudaProgram w = 
+    do
+        expression <- listToMaybe $ unStack $ _floatStack w
+        let (a, codeLines) = compile expression
+        return $ codeLines <> ["return " <> a <> ";"]
 
 doOtherStuff :: IO () 
 doOtherStuff = 

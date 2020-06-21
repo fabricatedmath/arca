@@ -55,7 +55,7 @@ int main() {
     NVRTC_SAFE_CALL( "nvrtcGetPTXSize", nvrtcGetPTXSize(prog, &ptxSize) );
     char *ptx = new char[ptxSize];
     NVRTC_SAFE_CALL( "nvrtcGetPTX", nvrtcGetPTX(prog, ptx) );
-    cout << ptx << endl;
+    //cout << ptx << endl;
 
     CUlinkState lState;
     CUjit_option options[6];
@@ -95,23 +95,23 @@ int main() {
     checkCudaErrors( cuCtxCreate(&context, 0, cuDevice) );
     checkCudaErrors( cuLinkCreate(6, options, optionVals, plState) );
     checkCudaErrors( cuLinkAddData(*plState, CU_JIT_INPUT_PTX, (void *)ptx, ptxSize+1, "device.ptx", 0, 0, 0) );
-    printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
+    //printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
     checkCudaErrors( cuLinkAddFile(*plState, CU_JIT_INPUT_PTX, "build/global.ptx", 0, 0, 0) );
     //checkCudaErrors( cuLinkAddFile(*plState, CU_JIT_INPUT_PTX, "build/device.ptx", 0, 0, 0) );
     
 
 
-    printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
+    //printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
 
-    printf("CUDA Link Completed in %fms. Linker Error Output:\n%s\n", walltime, error_log);
+    //printf("CUDA Link Completed in %fms. Linker Error Output:\n%s\n", walltime, error_log);
 
     void* cuOut;
     size_t outSize;
     CUresult curesult = cuLinkComplete(*plState, &cuOut, &outSize);
 
-    printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
+    //printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
 
-    printf("CUDA Link Completed in %fms. Linker Error Output:\n%s\n", walltime, error_log);
+    //printf("CUDA Link Completed in %fms. Linker Error Output:\n%s\n", walltime, error_log);
 
     if (curesult != CUDA_SUCCESS) {
       exit(1);
@@ -127,9 +127,9 @@ int main() {
     checkCudaErrors( cuModuleGetFunction(phKernel, *phModule, "kernel") );
     checkCudaErrors( cuLinkDestroy(*plState) );
 
-    printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
+    //printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
 
-    printf("CUDA Link Completed in %fms. Linker Error Output:\n%s\n", walltime, error_log);
+    //printf("CUDA Link Completed in %fms. Linker Error Output:\n%s\n", walltime, error_log);
 
     int nThreads = 32;
     int nBlocks = 1;

@@ -21,12 +21,11 @@ data NvrtcContainer =
 
 newNvrtcContainer :: CUContextContainer -> IO NvrtcContainer
 newNvrtcContainer cuContextContainerHandle = 
-    do
-        withForeignPtr (_cuContextContainerHandle cuContextContainerHandle) (\ctxPtr -> 
-            do
-                nvrtcContainerHandle <- c_nvrtcContainerNew ctxPtr >>= newForeignPtr c_nvrtcContainerDelete
-                return $ NvrtcContainer nvrtcContainerHandle
-            )
+    withForeignPtr (_cuContextContainerHandle cuContextContainerHandle) (\ctxPtr -> 
+        do
+            nvrtcContainerHandle <- c_nvrtcContainerNew ctxPtr >>= newForeignPtr c_nvrtcContainerDelete
+            return $ NvrtcContainer nvrtcContainerHandle
+        )
 
 compileNvrtcContainer :: NvrtcContainer -> Text -> IO Bool
 compileNvrtcContainer container prog = 

@@ -15,3 +15,14 @@ globalFunc =
     , "  }"
     , "}"
     ]
+
+globalFunc2 :: Text -> Text
+globalFunc2 meat = 
+    T.unlines 
+    [ "__global__"
+    , "void kernel() {"
+    , "  if (threadIdx.x == 0) {"
+    , "    printf(\"%d\\n\", threadIdx.x);"
+    , "  }"
+    , "}"
+    ]

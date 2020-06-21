@@ -156,10 +156,13 @@ drawASTString = unlines . draw
 
 type CompileMonad a = RWS () [Text] IntSet a
 
-
 -- | Compile AST into c-style statements (compatible with cuda)
-compile :: (C_Type o, TextShow o, Typeable o) => AST o -> Text
-compile ast = T.unlines $ map (`T.append` ";") $ snd $ evalRWS (compile' ast) () S.empty
+compile :: (C_Type o, TextShow o, Typeable o) => AST o -> (Text, [Text])
+compile ast = 
+    let 
+        (a,s) = evalRWS (compile' ast) () S.empty
+        codeLines = map (`T.append` ";") $ s
+    in (a, codeLines)
     where 
         gvn :: Int -> Text
         gvn n = "a" <> showt n
