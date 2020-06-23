@@ -8,11 +8,13 @@ import Control.Monad (replicateM_)
 
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 
 import Data.Time
 
 import Epigenisys.FFI.CUContextContainer
 import Epigenisys.FFI.NvrtcContainer
+import Epigenisys.FFI.PtxCompiler
 
 globalFunc :: Text
 globalFunc = 
@@ -59,6 +61,9 @@ globalFunc2 =
 run :: IO ()
 run = 
     do
+        ptxCompile globalFunc >>= either (\(i,t) -> print i >> T.putStrLn t) T.putStrLn 
+        return () 
+        {-
         cuCtx <- newCUContextContainer
         start <- getCurrentTime
         getNumCapabilities >>= print
@@ -89,6 +94,7 @@ run =
         replicateM_ 10 (readChan chan)
         end <- getCurrentTime
         print (diffUTCTime end start)
+        -}
 
 
 main :: IO ()

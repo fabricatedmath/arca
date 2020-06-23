@@ -37,14 +37,14 @@ int main() {
   //call();
     nvrtcProgram prog;
     NVRTC_SAFE_CALL("nvrtcCreateProgram", nvrtcCreateProgram(&prog, saxpy, "device.cu", 0, NULL, NULL) );
-    const char *opts[] = {"-rdc=true"};
-    nvrtcResult compileResult = nvrtcCompileProgram(prog, 1, opts); 
+    const char *opts[] = {"-rdc=true", "--gpu-architecture=compute_75"};
+    nvrtcResult compileResult = nvrtcCompileProgram(prog, 2, opts); 
 
     size_t logSize2;
     NVRTC_SAFE_CALL("nvrtcGetProgramLogSize", nvrtcGetProgramLogSize(prog, &logSize2) );
     char *log = new char[logSize2];
     NVRTC_SAFE_CALL("nvrtcGetProgramLog", nvrtcGetProgramLog(prog, log) );
-    std::cout << log << '\n';
+    std::cout << "log: " << log << "\nendLog" << '\n';
     delete[] log;
 
     if (compileResult != NVRTC_SUCCESS) {
@@ -55,7 +55,8 @@ int main() {
     NVRTC_SAFE_CALL( "nvrtcGetPTXSize", nvrtcGetPTXSize(prog, &ptxSize) );
     char *ptx = new char[ptxSize];
     NVRTC_SAFE_CALL( "nvrtcGetPTX", nvrtcGetPTX(prog, ptx) );
-    //cout << ptx << endl;
+    cout << ptx << endl;
+    //exit(1);
 
     CUlinkState lState;
     CUjit_option options[6];

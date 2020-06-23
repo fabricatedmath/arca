@@ -7,14 +7,14 @@
 
 #include "CUContextContainer.cuh"
 
-class NvrtcContainer {
+class NvrtcContainer2 {
 private:
     CUmodule hModule;
     CUfunction hKernel;
 public:
-    NvrtcContainer(CUContextContainer* cuContextContainer);
+    NvrtcContainer2(CUContextContainer* cuContextContainer);
     static void init();
     bool compile(const char* str, const int strlen);
     void run(const int numBlocks, const int numThreads);
-    ~NvrtcContainer();
+    ~NvrtcContainer2();
 };

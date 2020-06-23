@@ -1,4 +1,4 @@
-#include "NvrtcContainer.cuh"
+#include "NvrtcContainer2.cuh"
 
 #include <iostream>
 
@@ -22,21 +22,21 @@ using namespace std;
     }                                                           \
   } while (0)
 
-NvrtcContainer::NvrtcContainer(CUContextContainer* cuContextContainer) : hModule(0), hKernel(0) {
-    cuCtxSetCurrent(*cuContextContainer->getCtx());
+NvrtcContainer2::NvrtcContainer2(CUContextContainer* cuContextContainer) : hModule(0), hKernel(0) {
+    //cuCtxSetCurrent(*cuContextContainer->getCtx());
 }
 
-void NvrtcContainer::init() {
+void NvrtcContainer2::init() {
     checkCudaErrors( cuInit(0) );
-    cudaSetDevice(0);
+    //cudaSetDevice(0);
 }
 
-bool NvrtcContainer::compile(const char* str, const int strlen) {
+bool NvrtcContainer2::compile(const char* str, const int strlen) {
     string progStr(str,strlen);
     auto t0 = steady_clock::now();
     nvrtcProgram prog;
     NVRTC_SAFE_CALL("nvrtcCreateProgram", nvrtcCreateProgram(&prog, progStr.c_str(), "device.cu", 0, NULL, NULL) );
-    const char *opts[] = {}; //{"--ptxas-options -v"}; //{"-rdc=true", "--ptxas-options -v"};
+    const char *opts[] = {}; //{"-rdc=true"};
     nvrtcResult compileResult = nvrtcCompileProgram(prog, 0, opts); 
 
     size_t logSize2;
@@ -128,7 +128,7 @@ bool NvrtcContainer::compile(const char* str, const int strlen) {
     return true;
 }
 
-void NvrtcContainer::run(const int numBlocks, const int numThreads) {
+void NvrtcContainer2::run(const int numBlocks, const int numThreads) {
     int nThreads = numThreads;
     int nBlocks = numBlocks;
     dim3 block(nThreads, 1, 1);
@@ -140,7 +140,7 @@ void NvrtcContainer::run(const int numBlocks, const int numThreads) {
     cudaDeviceSynchronize();
 }
 
-NvrtcContainer::~NvrtcContainer() {
+NvrtcContainer2::~NvrtcContainer2() {
     if (hModule) {
         checkCudaErrors( cuModuleUnload(hModule) );
         hModule = 0;
