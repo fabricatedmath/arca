@@ -22,22 +22,20 @@ data NvrtcContainer =
 newNvrtcContainer :: CUContextContainer -> IO NvrtcContainer
 newNvrtcContainer cuContextContainerHandle = 
     withForeignPtr (_cuContextContainerHandle cuContextContainerHandle) (\ctxPtr -> 
-        do
-            nvrtcContainerHandle <- c_nvrtcContainerNew ctxPtr >>= newForeignPtr c_nvrtcContainerDelete
-            return $ NvrtcContainer nvrtcContainerHandle
-        )
+        NvrtcContainer <$> (c_nvrtcContainerNew ctxPtr >>= newForeignPtr c_nvrtcContainerDelete)
+    )
 
 compileNvrtcContainer :: NvrtcContainer -> Text -> IO Bool
 compileNvrtcContainer container prog = 
-        withForeignPtr (_nvrtcContainer container) (\containerPtr -> 
-                T.withCStringLen prog $ uncurry (c_nvrtcContainerCompile containerPtr)
-         )
+    withForeignPtr (_nvrtcContainer container) (\containerPtr -> 
+        T.withCStringLen prog $ uncurry (c_nvrtcContainerCompile containerPtr)
+    )
 
 runNvrtcContainer :: NvrtcContainer -> Int -> Int -> IO ()
 runNvrtcContainer container numBlocks numThreads = 
-        withForeignPtr (_nvrtcContainer container) (\containerPtr -> 
-                c_nvrtcContainerRun containerPtr numBlocks numThreads
-         )
+    withForeignPtr (_nvrtcContainer container) (\containerPtr -> 
+        c_nvrtcContainerRun containerPtr numBlocks numThreads
+    )
 
 
 foreign import ccall unsafe "nvrtcContainerNew" c_nvrtcContainerNew

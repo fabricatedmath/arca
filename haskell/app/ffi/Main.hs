@@ -15,6 +15,7 @@ import Data.Time
 import Epigenisys.FFI.CUContextContainer
 import Epigenisys.FFI.NvrtcContainer
 import Epigenisys.FFI.PtxCompiler
+import Epigenisys.FFI.PtxLinker
 
 globalFunc :: Text
 globalFunc = 
@@ -23,7 +24,7 @@ globalFunc =
     , "__global__"
     , "void kernel() {"
     , "  if (threadIdx.x == 0) {"
-    , "    printf(\"dogs:%d\\n\", threadIdx.x);"
+    , "    printf(\"cats:%d\\n\", threadIdx.x);"
     , "  }"
     , "}"
     , "}"
@@ -50,7 +51,7 @@ globalFunc2 =
     , "void kernel() {"
     , "  for (int i = 0; i < blockDim.x; i++) {"
     , "  if (threadIdx.x == i) {"
-    , "    printf(\"%d\\n\", i);"
+    , "    printf(\"dogs: %d\\n\", i);"
     , "  }"
     , "  }"
     , "  call();"
@@ -61,8 +62,24 @@ globalFunc2 =
 run :: IO ()
 run = 
     do
-        ptxCompile globalFunc >>= either (\(i,t) -> print i >> T.putStrLn t) T.putStrLn 
-        return () 
+        ctxContainer <- newCUContextContainer
+        setCurrentContext ctxContainer
+        start <- getCurrentTime
+        eptx <- ptxCompile globalFunc
+        end <- getCurrentTime
+        print (diffUTCTime end start)
+        case eptx of 
+            Left (code,err) -> 
+                do
+                    print code
+                    T.putStrLn err
+            Right ptx -> 
+                do
+                    ptxLinker <- newPtxLinker
+                    ptxLink ptxLinker ptx "kernel" >>= print
+                    ptxRun ptxLinker 1 32 >>= print
+                    ptxRun ptxLinker 1 32 >>= print
+                    ptxRun ptxLinker 1 32 >>= print
         {-
         cuCtx <- newCUContextContainer
         start <- getCurrentTime

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Epigenisys.FFI.PtxCompiler where
+module Epigenisys.FFI.PtxCompiler (ptxCompile) where
 
 import Data.Text (Text)
 import qualified Data.Text.Foreign as T (withCStringLen)

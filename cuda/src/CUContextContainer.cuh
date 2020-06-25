@@ -8,5 +8,7 @@ private:
 public:
     CUContextContainer();
     CUcontext* getCtx();
+    void setCurrentContext();
+    void popContext();
     ~CUContextContainer();
 };

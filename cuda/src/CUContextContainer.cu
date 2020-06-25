@@ -16,6 +16,14 @@ CUcontext* CUContextContainer::getCtx() {
     return ctx;
 }
 
+void CUContextContainer::setCurrentContext() {
+    cuCtxSetCurrent(*ctx);
+}
+
+void CUContextContainer::popContext() {
+    cuCtxPopCurrent(NULL);
+}
+
 CUContextContainer::~CUContextContainer() {
     checkCudaErrors( cuCtxDestroy(*ctx) );
     delete ctx;

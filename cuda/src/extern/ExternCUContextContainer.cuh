@@ -4,6 +4,7 @@
 
 extern "C" {
     CUContextContainer* cuContextContainerNew();
-    CUcontext* cuContextContainerGetCtx(CUContextContainer* cuContextContainer);
+    void cuContextContainerSetCurrentContext(CUContextContainer* cuContextContainer);
+    void cuContextContainerPopContext(CUContextContainer* cuContextContainer);
     void cuContextContainerDelete(CUContextContainer* cuContextContainer);
 }

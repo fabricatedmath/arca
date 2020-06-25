@@ -5,8 +5,12 @@ extern "C" {
         return new CUContextContainer();
     }
 
-    CUcontext* cuContextContainerGetCtx(CUContextContainer* cuContextContainer) {
-        return cuContextContainer->getCtx();
+    void cuContextContainerSetCurrentContext(CUContextContainer* cuContextContainer) {
+        cuContextContainer->setCurrentContext();
+    }
+
+    void cuContextContainerPopContext(CUContextContainer* cuContextContainer) {
+        cuContextContainer->popContext();
     }
 
     void cuContextContainerDelete(CUContextContainer* cuContextContainer) {

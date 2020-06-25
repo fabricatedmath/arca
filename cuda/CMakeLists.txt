@@ -45,8 +45,9 @@ target_compile_options(somethingLib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
     --ptxas-options=-v 
     -gencode arch=compute_75,code=sm_75>
 #    -rdc=true 
-    --keep
+    #--keep
     ) 
+
 
 #add_executable(something2 ${SOMETHING_SOURCE_DIR}/ptxjit/main.cu)
 #set_target_properties(somethingLib PROPERTIES
