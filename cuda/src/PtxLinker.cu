@@ -20,10 +20,12 @@ using namespace std::chrono;
   } while (0)
 
 PtxLinker::PtxLinker() 
-    : hModule(0), hKernel(0) {}
+    : hModule(0)
+    , hKernel(0)
+    , infoLogStr(new char[logSize])
+    , errorLogStr(new char[logSize]) {}
 
 int PtxLinker::link(const char* ptx, const int ptxLen, const char* funcNameStr, const int funcNameStrLen) {
-    auto t0 = steady_clock::now();
     const string funcName(funcNameStr,funcNameStrLen);
 
     CUlinkState lState;
@@ -32,8 +34,8 @@ int PtxLinker::link(const char* ptx, const int ptxLen, const char* funcNameStr, 
     void *optionVals[6];
 
     float walltime;
-    char error_log[8192], info_log[8192];
-    unsigned int logSize = 8192;
+    //char error_log[8192], info_log[8192];
+    //unsigned int logSize = 8192;
 
     // Setup linker options
     // Return walltime from JIT compilation
@@ -41,13 +43,13 @@ int PtxLinker::link(const char* ptx, const int ptxLen, const char* funcNameStr, 
     optionVals[0] = (void *)&walltime;
     // Pass a buffer for info messages
     options[1] = CU_JIT_INFO_LOG_BUFFER;
-    optionVals[1] = (void *)info_log;
+    optionVals[1] = (void *)infoLogStr;
     // Pass the size of the info buffer
     options[2] = CU_JIT_INFO_LOG_BUFFER_SIZE_BYTES;
     optionVals[2] = (void *)(long)logSize;
     // Pass a buffer for error message
     options[3] = CU_JIT_ERROR_LOG_BUFFER;
-    optionVals[3] = (void *)error_log;
+    optionVals[3] = (void *)errorLogStr;
     // Pass the size of the error buffer
     options[4] = CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES;
     optionVals[4] = (void *)(long)logSize;
@@ -57,35 +59,14 @@ int PtxLinker::link(const char* ptx, const int ptxLen, const char* funcNameStr, 
 
     CUlinkState *plState = &lState;
     CURESULT_SAFE_CALL( cuLinkCreate(6, options, optionVals, plState) );
-    //checkCudaErrors( cuLinkCreate(0, 0, 0, plState) );
     CURESULT_SAFE_CALL( cuLinkAddData(*plState, CU_JIT_INPUT_PTX, (void *)ptx, ptxLen, NULL, 0, 0, 0) );
-    //printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
-
-    //printf("CUDA Link Completed in %fms. Linker Error Output:\n%s\n", walltime, error_log);
 
     void* cuOut;
     size_t outSize;
-    CUresult curesult = cuLinkComplete(*plState, &cuOut, &outSize);
-
-    printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
-
-    printf("CUDA Link Completed in %fms. Linker Error Output:\n%s\n", walltime, error_log);
-
-    if (curesult != CUDA_SUCCESS) {
-        return curesult;
-    }
-
+    CURESULT_SAFE_CALL( cuLinkComplete(*plState, &cuOut, &outSize) );
     CURESULT_SAFE_CALL( cuModuleLoadData(&hModule, cuOut) );
     CURESULT_SAFE_CALL( cuModuleGetFunction(&hKernel, hModule, funcName.c_str()) );
     CURESULT_SAFE_CALL( cuLinkDestroy(*plState) );
-
-    //printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
-
-    //printf("CUDA Link Completed in %fms. Linker Error Output:\n%s\n", walltime, error_log);
-
-    auto t1 = steady_clock::now();
-
-    cout << duration_cast<milliseconds>(t1-t0).count() << endl;
     return CUDA_SUCCESS;
 }
 
@@ -99,8 +80,24 @@ int PtxLinker::run(const int numBlocks, const int numThreads) {
   
     CURESULT_SAFE_CALL( cuLaunchKernel(hKernel, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, NULL, args, NULL) );
     cudaDeviceSynchronize();
-    
+
     return CUDA_SUCCESS;
+}
+
+char* PtxLinker::getInfoLogStr() {
+    return infoLogStr;
+}
+
+size_t PtxLinker::getInfoLogStrLen() {
+    return logSize;
+}
+
+char* PtxLinker::getErrorLogStr() {
+    return errorLogStr;
+}
+
+size_t PtxLinker::getErrorLogStrLen() {
+    return logSize;
 }
 
 PtxLinker::~PtxLinker() {
@@ -108,4 +105,6 @@ PtxLinker::~PtxLinker() {
         checkCudaErrors( cuModuleUnload(hModule) );
         hModule = 0;
     }
+    delete infoLogStr;
+    delete errorLogStr;
 }

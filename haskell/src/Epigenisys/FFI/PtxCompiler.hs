@@ -1,8 +1,12 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Epigenisys.FFI.PtxCompiler (ptxCompile) where
 
+import Control.Monad.Except
+
 import Data.Text (Text)
+import qualified Data.Text as T
 import qualified Data.Text.Foreign as T (withCStringLen)
 
 import Foreign.C.String
@@ -10,6 +14,9 @@ import Foreign.C.String
 import Foreign.ForeignPtr
 import Foreign.Ptr
 
+import TextShow
+
+import Epigenisys.FFI.CudaEnums
 import Epigenisys.FFI.Util
 
 data PtxCompilerHandle
@@ -25,21 +32,34 @@ newPtxCompiler =
         ptxCompilerHandle <- c_ptxCompilerNew >>= newForeignPtr c_ptxCompilerDelete
         return $ PtxCompiler ptxCompilerHandle
 
-ptxCompile :: Text -> IO (Either (NvrtcResult,Text) Text)
+ptxCompile :: (MonadError Text m, MonadIO m) => Text -> m Text
 ptxCompile cudaCode = 
     do
-        ptxCompiler <- newPtxCompiler
-        withForeignPtr (_ptxCompiler ptxCompiler) (\ptr ->
+        ptxCompiler <- liftIO newPtxCompiler
+        eret <- liftIO $ withForeignPtr (_ptxCompiler ptxCompiler) (\ptr ->
             do
                 retCode <- toEnum <$> 
                     T.withCStringLen cudaCode (\(str,len) -> 
                         c_ptxCompilerCompile ptr str len False
                     )
                 case retCode of
-                    NVRTC_SUCCESS -> Right <$> ffiToText' c_ptxCompilerGetPtxStr c_ptxCompilerGetPtxStrLen ptr
+                    NVRTC_SUCCESS -> pure <$> ffiToText' c_ptxCompilerGetPtxStr c_ptxCompilerGetPtxStrLen ptr
                     i -> Left <$> (,) i <$> ffiToText' c_ptxCompilerGetLogStr c_ptxCompilerGetLogStrLen ptr
-            )
-
+                )
+        case eret of
+            Right ptx -> pure ptx
+            Left (result,logText) ->
+                do
+                    let tabbedLog = T.unlines $ map ("\t" <>) $ T.lines logText
+                        codeLines = 
+                            T.unlines $ map ("\t" <>) $ 
+                            zipWith (\i codeLine -> showt i <> ": " <> codeLine) ([1..] :: [Int]) $ 
+                            T.lines $ cudaCode
+                    throwError $ 
+                        "Failed to compile with code: " <> showt result <> 
+                        "\n\n" <> 
+                        tabbedLog <> 
+                        codeLines
 
 foreign import ccall unsafe "ptxCompilerNew" c_ptxCompilerNew
     :: IO (Ptr PtxCompilerHandle)
@@ -62,17 +82,4 @@ foreign import ccall unsafe "ptxCompilerGetLogStrLen" c_ptxCompilerGetLogStrLen
 foreign import ccall unsafe "&ptxCompilerDelete" c_ptxCompilerDelete
     :: FinalizerPtr PtxCompilerHandle
 
-data NvrtcResult = 
-    NVRTC_SUCCESS
-    | NVRTC_ERROR_OUT_OF_MEMORY
-    | NVRTC_ERROR_PROGRAM_CREATION_FAILURE
-    | NVRTC_ERROR_INVALID_INPUT
-    | NVRTC_ERROR_INVALID_PROGRAM
-    | NVRTC_ERROR_INVALID_OPTION
-    | NVRTC_ERROR_COMPILATION
-    | NVRTC_ERROR_BUILTIN_OPERATION_FAILURE
-    | NVRTC_ERROR_NO_NAME_EXPRESSIONS_AFTER_COMPILATION
-    | NVRTC_ERROR_NO_LOWERED_NAMES_BEFORE_COMPILATION
-    | NVRTC_ERROR_NAME_EXPRESSION_NOT_VALID
-    | NVRTC_ERROR_INTERNAL_ERROR
-        deriving (Show, Enum)
+

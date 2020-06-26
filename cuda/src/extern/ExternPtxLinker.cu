@@ -13,6 +13,22 @@ extern "C" {
         return ptxLinker->run(numBlocks, numThreads);
     }
 
+    char* ptxLinkerGetInfoLogStr(PtxLinker* ptxLinker) {
+        return ptxLinker->getInfoLogStr();
+    }
+
+    int ptxLinkerGetInfoLogStrLen(PtxLinker* ptxLinker) {
+        return ptxLinker->getInfoLogStrLen();
+    }
+
+    char* ptxLinkerGetErrorLogStr(PtxLinker* ptxLinker) {
+        return ptxLinker->getErrorLogStr();
+    }
+
+    int ptxLinkerGetErrorLogStrLen(PtxLinker* ptxLinker) {
+        return ptxLinker->getErrorLogStrLen();
+    }
+
     void ptxLinkerDelete(PtxLinker* ptxLinker) {
         delete ptxLinker;
     }

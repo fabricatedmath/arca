@@ -5,6 +5,7 @@ module Main where
 import Control.Concurrent (forkOS, getNumCapabilities)
 import Control.Concurrent.Chan
 import Control.Monad (replicateM_)
+import Control.Monad.Except
 
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -65,7 +66,15 @@ run =
         ctxContainer <- newCUContextContainer
         setCurrentContext ctxContainer
         start <- getCurrentTime
-        eptx <- ptxCompile globalFunc
+        stuff <- 
+            runExceptT $ do
+                ptx <- ptxCompile globalFunc
+                (log, runner) <- ptxLink ptx "kernel"
+                liftIO $ T.putStrLn log
+                ptxRun runner 1 32
+        either T.putStrLn pure stuff
+        
+        {-
         end <- getCurrentTime
         print (diffUTCTime end start)
         case eptx of 
@@ -80,6 +89,7 @@ run =
                     ptxRun ptxLinker 1 32 >>= print
                     ptxRun ptxLinker 1 32 >>= print
                     ptxRun ptxLinker 1 32 >>= print
+                    -}
         {-
         cuCtx <- newCUContextContainer
         start <- getCurrentTime

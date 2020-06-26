@@ -12,7 +12,7 @@ using namespace std;
     if (result != NVRTC_SUCCESS) {                              \
       std::cerr << "\nerror: " << Name << " failed with error " \
                 << nvrtcGetErrorString(result);                 \
-      exit(1);                                                  \
+      return result;                                                  \
     }                                                           \
   } while (0)
 
@@ -43,7 +43,7 @@ int PtxCompiler::compile(const char* str, const int strLen, bool rdc) {
     NVRTC_SAFE_CALL( "nvrtcGetPTXSize", nvrtcGetPTXSize(prog, &ptxStrLen) );
     ptxStr = new char[ptxStrLen];
     NVRTC_SAFE_CALL( "nvrtcGetPTX", nvrtcGetPTX(prog, ptxStr) );
-    return compileResult;
+    return NVRTC_SUCCESS;
 }
 
 char* PtxCompiler::getPtxStr() {
