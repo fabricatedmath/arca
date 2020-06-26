@@ -6,7 +6,7 @@ using namespace std;
 
 #define CUDA_DRIVER_API
 
-#include <helper_cuda.h>
+#include <HelperCuda.h>
 
 #include <chrono>
 using namespace std::chrono;

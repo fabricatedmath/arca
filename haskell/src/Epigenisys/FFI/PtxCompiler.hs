@@ -21,16 +21,13 @@ import Epigenisys.FFI.Util
 
 data PtxCompilerHandle
 
-data PtxCompiler = 
+newtype PtxCompiler = 
     PtxCompiler 
     { _ptxCompiler :: ForeignPtr PtxCompilerHandle
     }
 
 newPtxCompiler :: IO PtxCompiler
-newPtxCompiler = 
-    do
-        ptxCompilerHandle <- c_ptxCompilerNew >>= newForeignPtr c_ptxCompilerDelete
-        return $ PtxCompiler ptxCompilerHandle
+newPtxCompiler = fmap PtxCompiler $ c_ptxCompilerNew >>= newForeignPtr c_ptxCompilerDelete
 
 ptxCompile :: (MonadError Text m, MonadIO m) => Text -> m Text
 ptxCompile cudaCode = 

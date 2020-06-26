@@ -12,7 +12,7 @@ data CUContextContainer =
 
 newCUContextContainer :: IO CUContextContainer
 newCUContextContainer = 
-    CUContextContainer <$> (c_cuContextContainerNew >>= newForeignPtr c_cuContextContainerDelete)
+    fmap CUContextContainer $ c_cuContextContainerNew >>= newForeignPtr c_cuContextContainerDelete
 
 setCurrentContext :: CUContextContainer -> IO ()
 setCurrentContext cuContextContainer = 

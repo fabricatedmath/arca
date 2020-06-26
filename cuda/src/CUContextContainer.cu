@@ -2,22 +2,22 @@
 
 #define CUDA_DRIVER_API
 
-#include <helper_cuda.h>
+#include <HelperCuda.h>
 
 CUContextContainer::CUContextContainer() {
     checkCudaErrors( cuInit(0) );
     CUdevice cuDevice;
     checkCudaErrors( cuDeviceGet(&cuDevice, 0) );
-    ctx = new CUcontext();
-    checkCudaErrors( cuCtxCreate(ctx, 0, cuDevice) );
+    cuContext = new CUcontext();
+    checkCudaErrors( cuCtxCreate(cuContext, 0, cuDevice) );
 }
 
-CUcontext* CUContextContainer::getCtx() {
-    return ctx;
+CUcontext* CUContextContainer::getCuContext() {
+    return cuContext;
 }
 
 void CUContextContainer::setCurrentContext() {
-    cuCtxSetCurrent(*ctx);
+    cuCtxSetCurrent(*cuContext);
 }
 
 void CUContextContainer::popContext() {
@@ -25,6 +25,6 @@ void CUContextContainer::popContext() {
 }
 
 CUContextContainer::~CUContextContainer() {
-    checkCudaErrors( cuCtxDestroy(*ctx) );
-    delete ctx;
+    checkCudaErrors( cuCtxDestroy(*cuContext) );
+    delete cuContext;
 }

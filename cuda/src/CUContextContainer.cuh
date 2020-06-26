@@ -4,10 +4,10 @@
 
 class CUContextContainer {
 private:
-    CUcontext* ctx;
+    CUcontext* cuContext;
 public:
     CUContextContainer();
-    CUcontext* getCtx();
+    CUcontext* getCuContext();
     void setCurrentContext();
     void popContext();
     ~CUContextContainer();

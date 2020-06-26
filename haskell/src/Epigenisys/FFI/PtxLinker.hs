@@ -21,28 +21,25 @@ import Epigenisys.FFI.Util
 
 data PtxLinkerHandle
 
-data PtxLinker = 
+newtype PtxLinker = 
     PtxLinker 
     { _ptxLinker :: ForeignPtr PtxLinkerHandle
     }
 
 newtype PtxRunner = 
     PtxRunner 
-    { _ptxRunner :: PtxLinker
+    { _ptxRunner :: ForeignPtr PtxLinkerHandle
     }
 
 newPtxLinker :: IO PtxLinker
-newPtxLinker = 
-    do
-        ptxLinkerHandle <- c_ptxLinkerNew >>= newForeignPtr c_ptxLinkerDelete
-        return $ PtxLinker ptxLinkerHandle
+newPtxLinker = fmap PtxLinker $ c_ptxLinkerNew >>= newForeignPtr c_ptxLinkerDelete
 
 ptxLink :: (MonadError Text m, MonadIO m) => Text -> Text -> m (Text, PtxRunner)
 ptxLink ptxCode funcName = 
     do
-        ptxLinker <- liftIO newPtxLinker
+        ptxLinkerHandle <- liftIO $ _ptxLinker <$> newPtxLinker
         eret <- liftIO $
-            withForeignPtr (_ptxLinker ptxLinker) (\ptr ->
+            withForeignPtr ptxLinkerHandle (\ptr ->
                 T.withCStringLen ptxCode (\(ptxStr, ptxStrLen) ->
                     T.withCStringLen funcName (\(funcNameStr, funcNameStrLen) ->
                         do
@@ -54,7 +51,7 @@ ptxLink ptxCode funcName =
                 )
             )
         case eret of
-            Right logText -> pure $ (logText, PtxRunner ptxLinker)
+            Right logText -> pure $ (logText, PtxRunner ptxLinkerHandle)
             Left (result,logText) -> 
                 do
                     let tabbedLog = T.unlines $ map ("\t" <>) $ T.lines logText
@@ -72,7 +69,7 @@ ptxRun :: (MonadError Text m, MonadIO m) => PtxRunner -> Int -> Int -> m ()
 ptxRun ptxRunner numBlocks numThreads = 
     do
         retCode <- liftIO $ cuResultIntToCode <$>
-            withForeignPtr (_ptxLinker $ _ptxRunner $ ptxRunner) (\ptr -> 
+            withForeignPtr (_ptxRunner $ ptxRunner) (\ptr -> 
                 c_ptxLinkerRun ptr numBlocks numThreads
             )
         case retCode of

@@ -6,144 +6,77 @@
 
 using namespace std;
 
-#include "global.cuh"
+#include "ExternCUContextContainer.cuh"
+#include "ExternPtxCompiler.cuh"
+#include "ExternPtxLinker.cuh"
 
 #define CUDA_DRIVER_API
 
-#include <helper_cuda.h>
+#include <HelperCuda.h>
 
-#define NVRTC_SAFE_CALL(Name, x)                                \
-  do {                                                          \
-    nvrtcResult result = x;                                     \
-    if (result != NVRTC_SUCCESS) {                              \
-      std::cerr << "\nerror: " << Name << " failed with error " \
-                << nvrtcGetErrorString(result);                 \
-      exit(1);                                                  \
-    }                                                           \
-  } while (0)
-
-const char *saxpy = "                                           \n\
- __device__                                         \n\
-int device_call()                                               \n\
+const char *cudaCodeStr = "                                           \n\
+extern \"C\" __global__                                         \n\
+void kernel()   \n\
 {                                                               \n\
-    if (threadIdx.x == 0) {                                     \n\
-        printf(\"llama\\n\");                                     \n\
-    }                                                           \n\
-    return 7;                                                    \n\
-  } \n\
-                                                              \n";
+  size_t tid = blockIdx.x * blockDim.x + threadIdx.x;           \n\
+  if (tid == 0) {                                                \n\
+    printf(\"dogs:%d\\n\", tid);                             \n\
+  }                                                             \n\
+}                                                               \n";
+
+const int cudaCodeStrLen = strlen(cudaCodeStr);
+
+const char* funcNameStr = "kernel";
+
+const int funcNameStrLen = strlen(funcNameStr);
+
+const char* malformedPtxStr = "dogs";
+const int malformedPtxStrLen = strlen(malformedPtxStr);
 
 int main() {
-  //call();
-    nvrtcProgram prog;
-    NVRTC_SAFE_CALL("nvrtcCreateProgram", nvrtcCreateProgram(&prog, saxpy, "device.cu", 0, NULL, NULL) );
-    const char *opts[] = {"-rdc=true", "--gpu-architecture=compute_75"};
-    nvrtcResult compileResult = nvrtcCompileProgram(prog, 2, opts); 
+  CUContextContainer* cuContextContainer = cuContextContainerNew();
+  cuContextContainerSetCurrentContext(cuContextContainer);
+  PtxCompiler* ptxCompiler = ptxCompilerNew();
+  int result;
+  result = ptxCompilerCompile(ptxCompiler, cudaCodeStr, cudaCodeStrLen, false);
 
-    size_t logSize2;
-    NVRTC_SAFE_CALL("nvrtcGetProgramLogSize", nvrtcGetProgramLogSize(prog, &logSize2) );
-    char *log = new char[logSize2];
-    NVRTC_SAFE_CALL("nvrtcGetProgramLog", nvrtcGetProgramLog(prog, log) );
-    std::cout << "log: " << log << "\nendLog" << '\n';
-    delete[] log;
+  {
+    const char* ptxCompilerLogStr = ptxCompilerGetLogStr(ptxCompiler);
+    const int ptxCompilerLogStrLen = ptxCompilerGetLogStrLen(ptxCompiler);
+    const string logStr(ptxCompilerLogStr,ptxCompilerLogStrLen);
+    cout << "Compile Log: " << "\n" << logStr << endl;
 
-    if (compileResult != NVRTC_SUCCESS) {
-      exit(1);
+  }
+
+  if (result == NVRTC_SUCCESS) {
+    const char* ptxStr = ptxCompilerGetPtxStr(ptxCompiler);
+    const int ptxStrLen = ptxCompilerGetPtxStrLen(ptxCompiler);
+
+    PtxLinker* ptxLinker = ptxLinkerNew();
+
+    result = ptxLinkerLink(ptxLinker, ptxStr, ptxStrLen, funcNameStr, funcNameStrLen);
+    if (result == CUDA_SUCCESS) {
+      {
+        const char* ptxLinkerLogStr = ptxLinkerGetInfoLogStr(ptxLinker);
+        const int ptxLinkerLogStrLen = ptxLinkerGetInfoLogStrLen(ptxLinker);
+        const string logStr(ptxLinkerLogStr,ptxLinkerLogStrLen);
+        cout << "Linker Log: " << "\n" << logStr << "\n" << endl;
+      }
+      result = ptxLinkerRun(ptxLinker, 1, 32);
+      if (result == CUDA_SUCCESS) {
+        cout << "Successful run!" << endl;
+      } else {
+        CUresult cuResult = (CUresult)result;
+        cout << "Failed run! Code: " << cuResult << "\n" << _cudaGetErrorEnum(cuResult) << endl;
+      }
+    } else {
+        const char* ptxLinkerErrorStr = ptxLinkerGetErrorLogStr(ptxLinker);
+        const int ptxLinkerErrorStrLen = ptxLinkerGetErrorLogStrLen(ptxLinker);
+        const string errorStr(ptxLinkerErrorStr,ptxLinkerErrorStrLen);
+        cout << "Linker Error Log: " << "\n" << errorStr << "\n" << endl;
     }
-
-    size_t ptxSize;
-    NVRTC_SAFE_CALL( "nvrtcGetPTXSize", nvrtcGetPTXSize(prog, &ptxSize) );
-    char *ptx = new char[ptxSize];
-    NVRTC_SAFE_CALL( "nvrtcGetPTX", nvrtcGetPTX(prog, ptx) );
-    cout << ptx << endl;
-    //exit(1);
-
-    CUlinkState lState;
-    CUjit_option options[6];
-    void *optionVals[6];
-
-    float walltime;
-    char error_log[8192], info_log[8192];
-    unsigned int logSize = 8192;
-
-    // Setup linker options
-    // Return walltime from JIT compilation
-    options[0] = CU_JIT_WALL_TIME;
-    optionVals[0] = (void *)&walltime;
-    // Pass a buffer for info messages
-    options[1] = CU_JIT_INFO_LOG_BUFFER;
-    optionVals[1] = (void *)info_log;
-    // Pass the size of the info buffer
-    options[2] = CU_JIT_INFO_LOG_BUFFER_SIZE_BYTES;
-    optionVals[2] = (void *)(long)logSize;
-    // Pass a buffer for error message
-    options[3] = CU_JIT_ERROR_LOG_BUFFER;
-    optionVals[3] = (void *)error_log;
-    // Pass the size of the error buffer
-    options[4] = CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES;
-    optionVals[4] = (void *)(long)logSize;
-    // Make the linker verbose
-    options[5] = CU_JIT_LOG_VERBOSE;
-    optionVals[5] = (void *)1;
-
-    CUlinkState *plState = &lState;
-
-    checkCudaErrors( cuInit(0) );
-    //cudaSetDevice(0);
-    CUdevice cuDevice;
-    checkCudaErrors( cuDeviceGet(&cuDevice, 0) );
-    CUcontext context;
-    checkCudaErrors( cuCtxCreate(&context, 0, cuDevice) );
-    checkCudaErrors( cuLinkCreate(6, options, optionVals, plState) );
-    checkCudaErrors( cuLinkAddData(*plState, CU_JIT_INPUT_PTX, (void *)ptx, ptxSize+1, "device.ptx", 0, 0, 0) );
-    //printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
-    checkCudaErrors( cuLinkAddFile(*plState, CU_JIT_INPUT_PTX, "build/global.ptx", 0, 0, 0) );
-    //checkCudaErrors( cuLinkAddFile(*plState, CU_JIT_INPUT_PTX, "build/device.ptx", 0, 0, 0) );
-    
-
-
-    //printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
-
-    //printf("CUDA Link Completed in %fms. Linker Error Output:\n%s\n", walltime, error_log);
-
-    void* cuOut;
-    size_t outSize;
-    CUresult curesult = cuLinkComplete(*plState, &cuOut, &outSize);
-
-    //printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
-
-    //printf("CUDA Link Completed in %fms. Linker Error Output:\n%s\n", walltime, error_log);
-
-    if (curesult != CUDA_SUCCESS) {
-      exit(1);
-    }
-
-    CUmodule hModule = 0;
-    CUfunction hKernel = 0;
-
-    CUmodule* phModule = &hModule;
-    CUfunction* phKernel = &hKernel;
-
-    checkCudaErrors( cuModuleLoadData(phModule, cuOut) );
-    checkCudaErrors( cuModuleGetFunction(phKernel, *phModule, "kernel") );
-    checkCudaErrors( cuLinkDestroy(*plState) );
-
-    //printf("CUDA Link Completed in %fms. Linker Output:\n%s\n", walltime, info_log);
-
-    //printf("CUDA Link Completed in %fms. Linker Error Output:\n%s\n", walltime, error_log);
-
-    int nThreads = 32;
-    int nBlocks = 1;
-    dim3 block(nThreads, 1, 1);
-    dim3 grid(nBlocks, 1, 1);
-  
-    void *args[0] = {};
-  
-    checkCudaErrors( cuLaunchKernel(hKernel, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, NULL, args, NULL) );
-    cudaDeviceSynchronize();
-
-    if (hModule) {
-        checkCudaErrors( cuModuleUnload(hModule) );
-        hModule = 0;
-    }
+    ptxLinkerDelete(ptxLinker);
+  }
+  ptxCompilerDelete(ptxCompiler);
+  cuContextContainerDelete(cuContextContainer);
 }
