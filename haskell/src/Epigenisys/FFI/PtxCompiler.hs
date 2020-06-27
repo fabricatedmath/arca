@@ -1,7 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Epigenisys.FFI.PtxCompiler (ptxCompile) where
+module Epigenisys.FFI.PtxCompiler (PtxCode(..), ptxCompile) where
 
 import Control.Monad.Except
 
@@ -26,10 +27,15 @@ newtype PtxCompiler =
     { _ptxCompiler :: ForeignPtr PtxCompilerHandle
     }
 
+newtype PtxCode = 
+    PtxCode 
+    { _ptxCode :: Text
+    } deriving (Show, TextShow)
+
 newPtxCompiler :: IO PtxCompiler
 newPtxCompiler = fmap PtxCompiler $ c_ptxCompilerNew >>= newForeignPtr c_ptxCompilerDelete
 
-ptxCompile :: (MonadError Text m, MonadIO m) => Text -> m Text
+ptxCompile :: (MonadError Text m, MonadIO m) => Text -> m PtxCode
 ptxCompile cudaCode = 
     do
         ptxCompiler <- liftIO newPtxCompiler
@@ -44,7 +50,7 @@ ptxCompile cudaCode =
                     i -> Left <$> (,) i <$> ffiToText' c_ptxCompilerGetLogStr c_ptxCompilerGetLogStrLen ptr
                 )
         case eret of
-            Right ptx -> pure ptx
+            Right ptx -> pure $ PtxCode ptx
             Left (result,logText) ->
                 do
                     let tabbedLog = T.unlines $ map ("\t" <>) $ T.lines logText

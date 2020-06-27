@@ -3,18 +3,14 @@
 
 module Main where
 
---import Control.Monad.Except
+import Control.Monad.Except
 
 import Data.Text (Text)
---import qualified Data.Text.IO as T
 
 import TextShow
 
---import Epigenisys.FFI.Test
 import Epigenisys.Language 
 import Epigenisys.Worlds.SimpleWorld
---import Epigenisys.Worlds.SymbolWorld
---import qualified Epigenisys.Worlds.CudaWorld as C
 
 testProgram :: Text
 testProgram = "(Integer.1 Integer.2 Integer.+ Integer.4 Integer.*)"

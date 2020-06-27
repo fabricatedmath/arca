@@ -14,7 +14,6 @@ import qualified Data.Text.IO as T
 import Data.Time
 
 import Epigenisys.FFI.CUContextContainer
-import Epigenisys.FFI.NvrtcContainer
 import Epigenisys.FFI.PtxCompiler
 import Epigenisys.FFI.PtxLinker
 
@@ -69,7 +68,7 @@ run =
         stuff <- 
             runExceptT $ do
                 ptx <- ptxCompile globalFunc
-                (log, runner) <- ptxLink ptx "kernel"
+                (log, runner) <- ptxLink (FuncName "kernel") ptx 
                 liftIO $ T.putStrLn log
                 ptxRun runner 1 32
         either T.putStrLn pure stuff

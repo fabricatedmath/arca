@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Epigenisys.FFI.PtxLinker (ptxLink, PtxRunner, ptxRun) where
+module Epigenisys.FFI.PtxLinker (FuncName(..), ptxLink, PtxRunner, ptxRun) where
 
 import Control.Monad.Except
 
@@ -17,6 +17,7 @@ import Foreign.Ptr
 import TextShow
 
 import Epigenisys.FFI.CudaEnums
+import Epigenisys.FFI.PtxCompiler
 import Epigenisys.FFI.Util
 
 data PtxLinkerHandle
@@ -34,8 +35,14 @@ newtype PtxRunner =
 newPtxLinker :: IO PtxLinker
 newPtxLinker = fmap PtxLinker $ c_ptxLinkerNew >>= newForeignPtr c_ptxLinkerDelete
 
-ptxLink :: (MonadError Text m, MonadIO m) => Text -> Text -> m (Text, PtxRunner)
-ptxLink ptxCode funcName = 
+newtype FuncName = 
+    FuncName 
+    { _funcName :: Text 
+    } deriving Show
+
+-- TODO handle case where logs aren't written!
+ptxLink :: (MonadError Text m, MonadIO m) => FuncName -> PtxCode -> m (Text, PtxRunner)
+ptxLink (FuncName funcName) (PtxCode ptxCode) = 
     do
         ptxLinkerHandle <- liftIO $ _ptxLinker <$> newPtxLinker
         eret <- liftIO $
@@ -47,7 +54,7 @@ ptxLink ptxCode funcName =
                             case retCode of
                                 CUDA_SUCCESS -> pure <$> ffiToText' c_ptxLinkerGetInfoLogStr c_ptxLinkerGetInfoLogStrLen ptr
                                 i -> Left <$> (,) i <$> ffiToText' c_ptxLinkerGetErrorLogStr c_ptxLinkerGetErrorLogStrLen ptr
-                    )   
+                    )
                 )
             )
         case eret of
@@ -55,15 +62,17 @@ ptxLink ptxCode funcName =
             Left (result,logText) -> 
                 do
                     let tabbedLog = T.unlines $ map ("\t" <>) $ T.lines logText
+                    {-
                         codeLines = 
                             T.unlines $ map ("\t" <>) $ 
                             zipWith (\i ptxLine -> showt i <> ": " <> ptxLine) ([1..] :: [Int]) $ 
                             T.lines $ ptxCode
+                    -}
                     throwError $ 
                         "Failed to link with code: " <> showt result <> 
                         "\n\n" <> 
-                        tabbedLog <> 
-                        codeLines
+                        tabbedLog
+                        -- <> codeLines
 
 ptxRun :: (MonadError Text m, MonadIO m) => PtxRunner -> Int -> Int -> m ()
 ptxRun ptxRunner numBlocks numThreads = 
@@ -75,7 +84,6 @@ ptxRun ptxRunner numBlocks numThreads =
         case retCode of
             CUDA_SUCCESS -> pure ()
             result -> throwError $ "Failed to run with code: " <> showt result
-    
 
 foreign import ccall unsafe "ptxLinkerNew" c_ptxLinkerNew
     :: IO (Ptr PtxLinkerHandle)

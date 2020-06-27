@@ -9,7 +9,9 @@ private:
     CUmodule hModule;
     CUfunction hKernel;
     char* infoLogStr;
+    size_t infoLogStrLen;
     char* errorLogStr;
+    size_t errorLogStrLen;
 public:
     PtxLinker();
 

@@ -11,19 +11,21 @@ using namespace std;
 #include <chrono>
 using namespace std::chrono;
 
-#define CURESULT_SAFE_CALL(x)                                \
-  do {                                                          \
-    CUresult result = x;                                     \
-    if (result != CUDA_SUCCESS) {                              \
-      return result;                                                  \
-    }                                                           \
+#define CURESULT_SAFE_CALL(x)         \
+  do {                                \
+    CUresult result = x;              \
+    if (result != CUDA_SUCCESS) {     \
+      return result;                  \
+    }                                 \
   } while (0)
 
 PtxLinker::PtxLinker() 
     : hModule(0)
     , hKernel(0)
     , infoLogStr(new char[logSize])
-    , errorLogStr(new char[logSize]) {}
+    , infoLogStrLen(0)
+    , errorLogStr(new char[logSize])
+    , errorLogStrLen(0) {}
 
 int PtxLinker::link(const char* ptx, const int ptxLen, const char* funcNameStr, const int funcNameStrLen) {
     const string funcName(funcNameStr,funcNameStrLen);
@@ -57,16 +59,18 @@ int PtxLinker::link(const char* ptx, const int ptxLen, const char* funcNameStr, 
     options[5] = CU_JIT_LOG_VERBOSE;
     optionVals[5] = (void *)1;
 
-    CUlinkState *plState = &lState;
-    CURESULT_SAFE_CALL( cuLinkCreate(6, options, optionVals, plState) );
-    CURESULT_SAFE_CALL( cuLinkAddData(*plState, CU_JIT_INPUT_PTX, (void *)ptx, ptxLen, NULL, 0, 0, 0) );
+    CURESULT_SAFE_CALL( cuLinkCreate(6, options, optionVals, &lState) );
+    infoLogStrLen = logSize;
+    errorLogStrLen = logSize;
+
+    CURESULT_SAFE_CALL( cuLinkAddData(lState, CU_JIT_INPUT_PTX, (void *)ptx, ptxLen, NULL, 0, 0, 0) );
 
     void* cuOut;
     size_t outSize;
-    CURESULT_SAFE_CALL( cuLinkComplete(*plState, &cuOut, &outSize) );
+    CURESULT_SAFE_CALL( cuLinkComplete(lState, &cuOut, &outSize) );
     CURESULT_SAFE_CALL( cuModuleLoadData(&hModule, cuOut) );
     CURESULT_SAFE_CALL( cuModuleGetFunction(&hKernel, hModule, funcName.c_str()) );
-    CURESULT_SAFE_CALL( cuLinkDestroy(*plState) );
+    CURESULT_SAFE_CALL( cuLinkDestroy(lState) );
     return CUDA_SUCCESS;
 }
 
@@ -89,7 +93,7 @@ char* PtxLinker::getInfoLogStr() {
 }
 
 size_t PtxLinker::getInfoLogStrLen() {
-    return logSize;
+    return infoLogStrLen;
 }
 
 char* PtxLinker::getErrorLogStr() {
@@ -97,7 +101,7 @@ char* PtxLinker::getErrorLogStr() {
 }
 
 size_t PtxLinker::getErrorLogStrLen() {
-    return logSize;
+    return errorLogStrLen;
 }
 
 PtxLinker::~PtxLinker() {
