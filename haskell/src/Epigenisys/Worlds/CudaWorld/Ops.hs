@@ -9,8 +9,7 @@ import Data.Proxy
 
 import TextShow
 
-import Epigenisys.Language.Stack
-import Epigenisys.Language.Types
+import Epigenisys.Language
 import Epigenisys.Worlds.CudaWorld.Internal.AST
 
 -- | Helper to build stack op that drops 'a' value into an 'AST a' literal

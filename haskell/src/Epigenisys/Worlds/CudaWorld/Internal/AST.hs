@@ -34,8 +34,7 @@ import Data.Typeable
 
 import TextShow
 
-import Epigenisys.Language.Stack
-import Epigenisys.Language.Types
+import Epigenisys.Language
 
 class HasIdentifier w where
     idLens :: Lens' w Int

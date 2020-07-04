@@ -19,8 +19,6 @@ import Epigenisys.Language.Mutate
 
 import Epigenisys.Worlds.CudaWorld
 
-
-
 testProgram1 :: Text
 testProgram1 = "((Integer.+ Integer.1 Integer.2 (Integer.3 Float.2 Float.3.5 Float.+) Integer.*))"
 

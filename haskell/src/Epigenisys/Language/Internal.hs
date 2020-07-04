@@ -1,22 +1,28 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DerivingVia #-}
-{-# LANGUAGE OverloadedStrings #-}
 
-module Epigenisys.Language.Types where
+module Epigenisys.Language.Internal where
 
-import Control.Monad.State.Strict (State)
-
-import Data.Proxy (Proxy)
 import Data.Text (Text)
-
 import qualified Data.Text as T
+import Data.Text.Read (Reader)
 import qualified Data.Text.Lazy.Builder as T
 
 import GHC.Generics
 
 import TextShow
 import TextShow.Generic
+
+import Control.Monad.State.Strict (State)
+
+import Data.Proxy (Proxy)
+
+type LiteralParser w = Text -> Either String (PartialStackOp w)
+data NamespaceOps w = NamespaceOps Namespace (Maybe (LiteralParser w)) [PartialStackOp w]
+
+class HasNamespaces w where
+  getNamespaces :: [NamespaceOps w]
 
 type StackFunc w = State w ()
 
@@ -48,3 +54,19 @@ instance Show (StackOp w) where
 
 instance TextShow (StackOp w) where
   showb sop = T.fromText (unNamespace $ stackOpNamespace sop) <> singleton '.' <> T.fromText (unOpName $ stackOpName sop)
+
+applyNamespace :: Namespace -> PartialStackOp w -> StackOp w
+applyNamespace namespace (PartialStackOp opName f) = 
+  StackOp 
+  { stackOpFunc = f
+  , stackOpName = OpName $ opName
+  , stackOpNamespace = namespace
+  }
+
+textRead :: Reader a -> Text -> Either String a
+textRead reader t = 
+  either (\a -> Left $ "On input " ++ show t ++ ": " ++ a) Right $ do
+    (i,t') <- reader t
+    if T.null t' 
+      then return i
+      else Left $ "Failed to consume all input on literal: " ++ show t

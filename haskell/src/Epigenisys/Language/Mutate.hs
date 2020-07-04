@@ -13,7 +13,7 @@ import qualified Data.IntSet as S
 import System.Random 
 import Data.Tree 
 
-import Epigenisys.Language.Parser
+import Epigenisys.Language.Tree
 
 -- | Generate a random language sampler, using sampler arg
 generateLanguageTree 

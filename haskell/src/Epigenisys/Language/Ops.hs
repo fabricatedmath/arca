@@ -10,7 +10,7 @@ import Data.Proxy (Proxy)
 import Data.Text (Text)
 
 import Epigenisys.Language.Stack
-import Epigenisys.Language.Types
+import Epigenisys.Language.Internal
 
 import TextShow
 

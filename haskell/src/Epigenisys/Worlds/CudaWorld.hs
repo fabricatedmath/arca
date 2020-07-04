@@ -32,8 +32,6 @@ import System.Random
 
 import Epigenisys.Language
 import Epigenisys.Language.Mutate
-import Epigenisys.Language.Parser
-import Epigenisys.Language.Stack
 import Epigenisys.Worlds.CudaWorld.Internal
 import Epigenisys.Worlds.CudaWorld.Ops
 import qualified Epigenisys.Worlds.CudaWorld.GeneratedOps.IntegerIntrinsics as IntegerIntrinsics

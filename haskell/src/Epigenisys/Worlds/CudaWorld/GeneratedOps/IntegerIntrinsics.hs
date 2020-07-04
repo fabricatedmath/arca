@@ -3,8 +3,7 @@
 
 module Epigenisys.Worlds.CudaWorld.GeneratedOps.IntegerIntrinsics where
 
-import Epigenisys.Language.Stack
-import Epigenisys.Language.Types
+import Epigenisys.Language
 import Epigenisys.Worlds.CudaWorld.Internal
 
 -- | Exported Lists

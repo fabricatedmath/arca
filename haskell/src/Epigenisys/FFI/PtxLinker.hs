@@ -1,10 +1,12 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Epigenisys.FFI.PtxLinker (FuncName(..), ptxLink, PtxRunner, ptxRun) where
 
 import Control.Monad.Except
 
+import Data.String
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Foreign as T (withCStringLen)
@@ -38,7 +40,7 @@ newPtxLinker = fmap PtxLinker $ c_ptxLinkerNew >>= newForeignPtr c_ptxLinkerDele
 newtype FuncName = 
     FuncName 
     { _funcName :: Text 
-    } deriving Show
+    } deriving (IsString, Show)
 
 -- TODO handle case where logs aren't written!
 ptxLink :: (MonadError Text m, MonadIO m) => FuncName -> PtxCode -> m (Text, PtxRunner)
@@ -62,7 +64,7 @@ ptxLink (FuncName funcName) (PtxCode ptxCode) =
             Left (result,logText) -> 
                 do
                     let tabbedLog = T.unlines $ map ("\t" <>) $ T.lines logText
-                    {-
+                    {- Prints generated ptx as part of error message
                         codeLines = 
                             T.unlines $ map ("\t" <>) $ 
                             zipWith (\i ptxLine -> showt i <> ": " <> ptxLine) ([1..] :: [Int]) $ 

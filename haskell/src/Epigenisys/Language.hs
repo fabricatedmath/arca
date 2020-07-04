@@ -4,7 +4,9 @@
 
 module Epigenisys.Language (
     Stack(..), Exec(..), HasEmpty(..), runLang, runProg,
-    StackOp(..), textRead, Namespace(..)
+    StackOp(..), textRead, Namespace(..), HasNamespaces(..), NamespaceOps(..)
+    , LanguageTree(..), drawLanguageTree, applyNamespace, module Epigenisys.Language.Stack
+    , PartialStackOp(..)
     )
 where
 
@@ -13,9 +15,10 @@ import qualified Data.Text.Lazy as T
 
 import TextShow
 
+import Epigenisys.Language.Internal
 import Epigenisys.Language.Parser
 import Epigenisys.Language.Stack
-import Epigenisys.Language.Types
+import Epigenisys.Language.Tree
 
 newtype Exec w = Exec (LanguageTree (StackOp w))
 
