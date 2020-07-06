@@ -4,6 +4,8 @@
 
 module Epigenisys.Language.Internal where
 
+import Data.Proxy (Proxy)
+
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Read (Reader)
@@ -14,9 +16,7 @@ import GHC.Generics
 import TextShow
 import TextShow.Generic
 
-import Control.Monad.State.Strict (State)
-
-import Data.Proxy (Proxy)
+import Epigenisys.Language.Stack (State)
 
 type LiteralParser w = Text -> Either String (PartialStackOp w)
 data NamespaceOps w = NamespaceOps Namespace (Maybe (LiteralParser w)) [PartialStackOp w]
