@@ -18,7 +18,7 @@ const char *cudaCodeStr = "                                           \n\
 extern \"C\" __global__                                         \n\
 void kernel()   \n\
 {                                                               \n\
-  size_t tid = blockIdx.x * blockDim.x + threadIdx.x;           \n\
+  int tid = blockIdx.x * blockDim.x + threadIdx.x;           \n\
   if (tid == 0) {                                                \n\
     printf(\"dogs:%d\\n\", tid);                             \n\
   }                                                             \n\

@@ -7,7 +7,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Epigenisys.Worlds.SimpleWorld where
+module Arca.Worlds.SimpleWorld where
 
 import Control.Lens
 
@@ -19,8 +19,8 @@ import GHC.Generics
 import TextShow
 import TextShow.Generic
 
-import Epigenisys.Language
-import Epigenisys.Language.Ops 
+import Arca.Language
+import Arca.Language.Ops 
 
 data World =
   World

@@ -6,7 +6,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module Epigenisys.Worlds.CudaWorld where
+module Arca.Cuda.World where
 
 import Control.Lens
 
@@ -30,15 +30,15 @@ import TextShow.Generic
 
 import System.Random
 
-import Epigenisys.Language
-import Epigenisys.Language.Mutate
+import Arca.Language
+import Arca.Language.Mutate
 
-import Epigenisys.Worlds.CudaWorld.Internal
-import Epigenisys.Worlds.CudaWorld.Ops
+import Arca.Cuda.World.Internal
+import Arca.Cuda.World.Ops
 
-import qualified Epigenisys.Worlds.CudaWorld.GeneratedOps.IntegerIntrinsics as IntegerIntrinsics
-import qualified Epigenisys.Worlds.CudaWorld.GeneratedOps.SinglePrecisionMathematicalFunctions as SinglePrecisionMathematicalFunctions
-import qualified Epigenisys.Worlds.CudaWorld.GeneratedOps.SinglePrecisionIntrinsics as SinglePrecisionIntrinsics
+import qualified Arca.Cuda.World.GeneratedOps.IntegerIntrinsics as IntegerIntrinsics
+import qualified Arca.Cuda.World.GeneratedOps.SinglePrecisionMathematicalFunctions as SinglePrecisionMathematicalFunctions
+import qualified Arca.Cuda.World.GeneratedOps.SinglePrecisionIntrinsics as SinglePrecisionIntrinsics
 
 data World = 
     World

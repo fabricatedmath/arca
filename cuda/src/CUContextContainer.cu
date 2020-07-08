@@ -4,10 +4,12 @@
 
 #include <HelperCuda.h>
 
-CUContextContainer::CUContextContainer() {
+CUContextContainer::CUContextContainer() : CUContextContainer(0) {}
+
+CUContextContainer::CUContextContainer(int deviceNum) {
     checkCudaErrors( cuInit(0) );
     CUdevice cuDevice;
-    checkCudaErrors( cuDeviceGet(&cuDevice, 0) );
+    checkCudaErrors( cuDeviceGet(&cuDevice, deviceNum) );
     cuContext = new CUcontext();
     checkCudaErrors( cuCtxCreate(cuContext, 0, cuDevice) );
 }

@@ -7,6 +7,7 @@ private:
     CUcontext* cuContext;
 public:
     CUContextContainer();
+    CUContextContainer(int deviceNum);
     CUcontext* getCuContext();
     void setCurrentContext();
     void popContext();

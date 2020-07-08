@@ -80,9 +80,9 @@ int PtxLinker::run(const int numBlocks, const int numThreads) {
     dim3 block(nThreads, 1, 1);
     dim3 grid(nBlocks, 1, 1);
   
-    void *args[0] = {};
+    void *args[] = {};
   
-    CURESULT_SAFE_CALL( cuLaunchKernel(hKernel, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, NULL, args, NULL) );
+    CURESULT_SAFE_CALL( cuLaunchKernel(hKernel, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, NULL, &args[0], NULL) );
     cudaDeviceSynchronize();
 
     return CUDA_SUCCESS;
