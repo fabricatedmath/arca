@@ -52,7 +52,6 @@ executables:
     dependencies:
     - arca-cuda
 
-executables:
   arca-cuda-2-exe:
     main:                Main.hs
     source-dirs:         app/
