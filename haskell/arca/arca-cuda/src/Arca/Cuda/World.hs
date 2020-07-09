@@ -78,33 +78,44 @@ worldOps = listArray (0,length stackops - 1) stackops
         (NamespaceOps namespace _ pops) = cudaNamespaceOps
         stackops = map (applyNamespace namespace) pops
 
-randomElementSampler :: (MonadState g m, RandomGen g) => m (StackOp World)
+randomElementSampler :: forall g m. (MonadState g m, RandomGen g) => m (StackOp World)
 randomElementSampler =
     do
-        let 
+        let
+            genFloat :: m (StackOp World)
             genFloat = do
                 r <- state $ random
                 return $ applyNamespace (Namespace "Float") $ literalOp . C_Float $ r
 
+            genInt :: m (StackOp World)
             genInt = do
                 r <- state $ random
                 return $ applyNamespace (Namespace "Int") $ literalOp . C_Int $ r
 
+            genVariable :: m (StackOp World)
+            genVariable = do
+                --r <- state $ random
+                return $ applyNamespace (Namespace "Float") $ variableOp (Proxy :: Proxy C_Float) "gen(something)"
+
+            genLiteral :: m (StackOp World)
             genLiteral = do
                 b <- state $ random
                 case b of
                     True -> genFloat
                     False -> genInt
                             
+            genOp :: m (StackOp World)
             genOp = do
                 let arr = worldOps
                 r <- state $ randomR $ bounds arr
                 return $ arr ! r
+
         let thresh = 0.6 :: Double
         r <- state $ random
         case () of 
             _ | r < thresh -> genOp
-                | otherwise -> genFloat
+              | otherwise -> genFloat
+              -- | otherwise -> genVariable
 
 cudaNamespaceOps :: NamespaceOps World
 cudaNamespaceOps = NamespaceOps (Namespace "Cuda") Nothing ops

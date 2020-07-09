@@ -7,6 +7,7 @@ module Arca.Cuda.World.Ops where
 
 import Data.Proxy
 
+import Data.Text (Text)
 import TextShow
 
 import Arca.Language
@@ -18,6 +19,10 @@ literalOp a = PartialStackOp (showt a) $
     do
         i <- ratchetId
         pushL (stackLens :: StackLens w (AST a)) $ Literal i a
+
+variableOp :: forall a w. (TextShow a, HasIdentifier w, HasStackLens w (AST a)) => Proxy a -> Text -> PartialStackOp w
+variableOp _ varName = PartialStackOp (showt varName) $ 
+    pushL (stackLens :: StackLens w (AST a)) $ Variable varName
 
 addOp :: forall a o w. (o ~ AST a, C_Type a, HasIdentifier w, HasStackLens w o) => Proxy a -> PartialStackOp w
 addOp _ = opify (Op True "+" :: Op (TwoArg o o) (OneArg o))
