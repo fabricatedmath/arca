@@ -131,7 +131,7 @@ randomFunc ::  IO ()
 randomFunc = 
     do
         T.putStrLn "\n\n\n"
-        w <- generateRandomWorld
+        w <- generateRandomWorld 100
         case generateACudaProgram w of
             Nothing -> putStrLn "No program found"
             Just b -> 
@@ -151,7 +151,7 @@ randomFuncs :: IO ()
 randomFuncs = 
     do
         let numBlocks = 32
-        ws <- replicateM numBlocks generateRandomWorld
+        ws <- replicateM numBlocks $ generateRandomWorld 100
         let cudaCode = cudaFuncMultiSM ws 
         T.putStrLn cudaCode
         manageExceptT $ do

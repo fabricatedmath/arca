@@ -6,7 +6,7 @@ module Arca.Language (
     Stack(..), Exec(..), HasEmpty(..), runLang, runProg,
     StackOp(..), textRead, Namespace(..), HasNamespaces(..), NamespaceOps(..)
     , LanguageTree(..), drawLanguageTree, applyNamespace, module Arca.Language.Stack
-    , PartialStackOp(..), parseLang
+    , PartialStackOp(..), parseLang, OpName(..)
     )
 where
 
@@ -33,23 +33,25 @@ instance TextShow (Exec w) where
 class HasEmpty a where
     getEmpty :: a
 
-runWorld :: HasStackLens w (Exec w) => State w ()
-runWorld = do
-    me <- popL stackLens
-    case me of
-        Nothing -> return ()
-        Just (Exec e) -> do
-            case e of
-                Expression a -> stackOpFunc a
-                Open ts -> pushListL stackLens $ map Exec ts
-            runWorld
+runWorld :: HasStackLens w (Exec w) => Int -> State w ()
+runWorld limit 
+    | limit <= 0 = pure ()
+    | otherwise = do
+        me <- popL stackLens
+        case me of
+            Nothing -> pure ()
+            Just (Exec e) -> do
+                case e of
+                    Expression a -> stackOpFunc a
+                    Open ts -> pushListL stackLens $ map Exec ts
+                runWorld (limit - 1)
 
-runProg :: forall w. (HasNamespaces w, HasStackLens w (Exec w), HasEmpty w) => Exec w -> w
-runProg opTree = do
-    let m = pushL stackLens opTree *> runWorld
+runProg :: forall w. (HasNamespaces w, HasStackLens w (Exec w), HasEmpty w) => Int -> Exec w -> w
+runProg limit opTree = do
+    let m = pushL stackLens opTree *> runWorld limit
     execState m getEmpty
 
-runLang :: forall w. (HasNamespaces w, HasStackLens w (Exec w), HasEmpty w) => Text -> Either String w
-runLang program = do
+runLang :: forall w. (HasNamespaces w, HasStackLens w (Exec w), HasEmpty w) => Int -> Text -> Either String w
+runLang limit program = do
     opTree <- Exec <$> parseLang program :: Either String (Exec w)
-    pure $ runProg opTree
+    pure $ runProg limit opTree

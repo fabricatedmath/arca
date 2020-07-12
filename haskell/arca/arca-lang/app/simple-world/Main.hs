@@ -27,4 +27,4 @@ main =
       liftIO $ print w
       liftIO $ putStrLn $ drawLanguageTree $ fmap show w
 
-    printT $ (runLang testProgram :: Either String World)
+    printT $ (runLang 100 testProgram :: Either String World)

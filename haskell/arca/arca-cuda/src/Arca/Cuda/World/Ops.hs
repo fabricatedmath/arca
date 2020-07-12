@@ -15,14 +15,16 @@ import Arca.Cuda.World.Internal.AST
 
 -- | Helper to build stack op that drops 'a' value into an 'AST a' literal
 literalOp :: forall a w. (TextShow a, HasIdentifier w, HasStackLens w (AST a)) => a -> PartialStackOp w
-literalOp a = PartialStackOp (showt a) $ 
+literalOp a = PartialStackOp (OpName $ showt a) $ 
     do
         i <- ratchetId
         pushL (stackLens :: StackLens w (AST a)) $ Literal i a
 
-variableOp :: forall a w. (TextShow a, HasIdentifier w, HasStackLens w (AST a)) => Proxy a -> Text -> PartialStackOp w
-variableOp _ varName = PartialStackOp (showt varName) $ 
-    pushL (stackLens :: StackLens w (AST a)) $ Variable varName
+callOp :: forall a w. (TextShow a, HasIdentifier w, HasStackLens w (AST a)) => Proxy a -> OpName -> Text -> PartialStackOp w
+callOp _ opName call = PartialStackOp opName $ 
+    do
+        i <- ratchetId
+        pushL (stackLens :: StackLens w (AST a)) $ Call i call
 
 addOp :: forall a o w. (o ~ AST a, C_Type a, HasIdentifier w, HasStackLens w o) => Proxy a -> PartialStackOp w
 addOp _ = opify (Op True "+" :: Op (TwoArg o o) (OneArg o))
@@ -37,9 +39,15 @@ divideOp :: forall a o w. (o ~ AST a, C_Type a, HasIdentifier w, HasStackLens w 
 divideOp _ = opify (Op True "/" :: Op (TwoArg o o) (OneArg o))
 
 dupOp :: forall a w. HasStackLens w a => Proxy a -> PartialStackOp w
-dupOp _ = PartialStackOp "dup" $  do
+dupOp _ = PartialStackOp (OpName "dup") $  do
     me <- popL (stackLens :: StackLens w a)
     case me of
         Nothing -> return ()
-        Just e -> do
-            pushListL stackLens [e,e]
+        Just e -> pushListL stackLens [e,e]
+
+dupOpAST :: forall a o w. (o ~ AST a, C_Type a, HasIdentifier w, HasStackLens w o) => Proxy a -> PartialStackOp w
+dupOpAST _ = PartialStackOp (OpName "dup") $  do
+    me <- popL (stackLens :: StackLens w o)
+    case me of
+        Nothing -> return ()
+        Just e -> pushListL stackLens [e,e]

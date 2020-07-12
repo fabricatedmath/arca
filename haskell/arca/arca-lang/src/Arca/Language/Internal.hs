@@ -28,7 +28,7 @@ type StackFunc w = State w ()
 
 type ProxyPartialStackOp w a = Proxy a -> PartialStackOp w
 
-data PartialStackOp w = PartialStackOp Text (StackFunc w)
+data PartialStackOp w = PartialStackOp OpName (StackFunc w)
 
 newtype Namespace = Namespace { unNamespace :: Text }
   deriving (Eq, Generic, Ord, Show)
@@ -59,7 +59,7 @@ applyNamespace :: Namespace -> PartialStackOp w -> StackOp w
 applyNamespace namespace (PartialStackOp opName f) = 
   StackOp 
   { stackOpFunc = f
-  , stackOpName = OpName $ opName
+  , stackOpName = opName
   , stackOpNamespace = namespace
   }
 

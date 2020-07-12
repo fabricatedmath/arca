@@ -43,6 +43,7 @@ ratchetId :: HasIdentifier w => State w Int
 ratchetId = idLens %%= (\i -> (i,i+1))
 
 data AST o where
+    Call :: Int -> Text -> AST o
     Literal :: Int -> o -> AST o
     Variable :: Text -> AST o
     UnaryExpression :: 
@@ -88,6 +89,8 @@ data AST o where
         } -> AST o
 
 instance (Show o, Typeable o) => Show (AST o) where
+    show c@(Call _ident call) = 
+        "Call(" <> show call <> " :: " <> show (typeRep c) <> ")"
     show (Literal _ident o) = 
         "Literal(" <> show o <> " :: " <> show (typeOf o) <> ")"
     show v@(Variable s) = 
@@ -106,6 +109,8 @@ instance (Show o, Typeable o) => Show (AST o) where
             where args = intercalate ", " [show o1, show o2, show o3, show o4]
 
 instance (TextShow o, Typeable o) => TextShow (AST o) where
+    showb c@(Call _ident call) = 
+        "Call(" <> T.fromText call <> " :: " <> showb (typeRep c) <> ")"
     showb (Literal _ident o) = 
         "Literal(" <> showb o <> " :: " <> showb (typeOf o) <> ")"
     showb v@(Variable s) = 
@@ -136,6 +141,8 @@ drawASTString = unlines . draw
         shift first other = zipWith (++) (first : repeat other)
 
         draw :: (Show o, Typeable o) => AST o -> [String]
+        draw c@(Call n call) = 
+            lines $ "Call" <> " - " <> show n <> " - " <> "(" <> show call <> ") :: " <> show (typeOf c)
         draw (Literal n o) = 
             lines $ "Literal" <> " - " <> show n <> " - " <> "(" <> show o <> ") :: " <> show (typeOf o)
         draw v@(Variable s) = 
@@ -174,6 +181,12 @@ compile ast =
                 pure $ S.member i s
 
         compile' :: (C_Type o, TextShow o, Typeable o) => AST o -> CompileMonad Text
+        compile' c@(Call i call) = 
+            do
+                b <- checkAndAdd i
+                let var = gvn i
+                unless b $ tell $ pure $ ctypep c <> " " <> var <> " = " <> call
+                pure var
         compile' (Literal i o) = 
             do
                 b <- checkAndAdd i
@@ -294,7 +307,7 @@ class Opify w a where
     opify :: a -> PartialStackOp w
 
 instance (OpIn w i, OpOut w i o) => Opify w (Op i o) where
-    opify (Op isInfix text) = PartialStackOp text $
+    opify (Op isInfix text) = PartialStackOp (OpName text) $
         do
             mi <- opin (Proxy :: Proxy i)
             case mi of

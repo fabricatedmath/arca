@@ -72,10 +72,26 @@ instance HasStackLens World I where
 instance HasStackLens World F where
     stackLens = floatStack
 
-worldOps :: Array Int (StackOp World)
-worldOps = listArray (0,length stackops - 1) stackops
+floatRGenCudaCall :: Text
+floatRGenCudaCall = "curand(&localState)"
+
+randGenCallOp :: StackOp World
+randGenCallOp = applyNamespace (Namespace "Float") $ randGenCallPartialOp
+
+randGenCallPartialOp :: PartialStackOp World
+randGenCallPartialOp = callOp fp (OpName "rgen") floatRGenCudaCall
+    where fp = Proxy :: Proxy C_Float
+
+cudaWorldOps :: Array Int (StackOp World)
+cudaWorldOps = listArray (0,length stackops - 1) stackops
     where
         (NamespaceOps namespace _ pops) = cudaNamespaceOps
+        stackops = map (applyNamespace namespace) pops
+
+execWorldOps :: Array Int (StackOp World)
+execWorldOps = listArray (0,length stackops - 1) stackops
+    where
+        (NamespaceOps namespace _ pops) = execNamespaceOps
         stackops = map (applyNamespace namespace) pops
 
 randomElementSampler :: forall g m. (MonadState g m, RandomGen g) => m (StackOp World)
@@ -93,9 +109,7 @@ randomElementSampler =
                 return $ applyNamespace (Namespace "Int") $ literalOp . C_Int $ r
 
             genVariable :: m (StackOp World)
-            genVariable = do
-                --r <- state $ random
-                return $ applyNamespace (Namespace "Float") $ variableOp (Proxy :: Proxy C_Float) "gen(something)"
+            genVariable = pure randGenCallOp
 
             genLiteral :: m (StackOp World)
             genLiteral = do
@@ -103,10 +117,24 @@ randomElementSampler =
                 case b of
                     True -> genFloat
                     False -> genInt
-                            
+
             genOp :: m (StackOp World)
             genOp = do
-                let arr = worldOps
+                let thresh = 0.3 :: Double
+                r <- state $ random
+                case () of 
+                    _ | r < thresh -> genCudaOp
+                      | otherwise -> genExecOp
+                            
+            genCudaOp :: m (StackOp World)
+            genCudaOp = do
+                let arr = cudaWorldOps
+                r <- state $ randomR $ bounds arr
+                return $ arr ! r
+
+            genExecOp :: m (StackOp World)
+            genExecOp = do
+                let arr = execWorldOps
                 r <- state $ randomR $ bounds arr
                 return $ arr ! r
 
@@ -114,8 +142,8 @@ randomElementSampler =
         r <- state $ random
         case () of 
             _ | r < thresh -> genOp
-              | otherwise -> genFloat
-              -- | otherwise -> genVariable
+              -- | otherwise -> genFloat
+              | otherwise -> genVariable
 
 cudaNamespaceOps :: NamespaceOps World
 cudaNamespaceOps = NamespaceOps (Namespace "Cuda") Nothing ops
@@ -147,6 +175,8 @@ floatNamespaceOps = NamespaceOps (Namespace "Float") litParser floatOps
             , subtractOp fp
             , multiplyOp fp
             , divideOp fp
+            , randGenCallPartialOp
+            , dupOpAST fp
             ] where fp = Proxy :: Proxy C_Float
 
 execNamespaceOps :: NamespaceOps World
@@ -161,25 +191,38 @@ instance HasNamespaces World where
         , execNamespaceOps
         ]
 
-runStuff :: IO ()
-runStuff = 
+doStuff :: Int -> IO () 
+doStuff limit = 
+    do
+        let prog = "(Exec.dup (Float.1 Float.rgen Float.*) Float.+ Float.dup Float.+)"
+            ew = parseLang prog :: Either String (LanguageTree (StackOp World))
+        case ew of 
+            Left err -> print err
+            Right t -> 
+                do
+                    putStrLn $ drawLanguageTree $ fmap show t
+                    T.putStr . printWorld $ runProg limit $ Exec t
+
+
+runStuff :: Int -> IO ()
+runStuff limit = 
     do
         let s = randomElementSampler
         g <- newStdGen 
         let t = evalState (generateLanguageTree s 10 30) g :: LanguageTree (StackOp World)
         putStrLn $ drawLanguageTree $ fmap show t
         T.putStrLn $ showt $ Exec t
-        T.putStr . printWorld $ runProg $ Exec t
+        T.putStr . printWorld $ runProg limit $ Exec t
 
-generateRandomWorld :: IO World
-generateRandomWorld = 
+generateRandomWorld :: Int -> IO World
+generateRandomWorld limit = 
     do
         let s = randomElementSampler
         g <- newStdGen 
         let t = evalState (generateLanguageTree s 10 30) g :: LanguageTree (StackOp World)
         --putStrLn $ drawLanguageTree $ fmap show t
         --T.putStrLn $ showt $ Exec t
-        return $ runProg $ Exec t
+        return $ runProg limit $ Exec t
 
 {-
 doStuff :: IO ()
@@ -245,8 +288,8 @@ generateACudaProgram w =
         let (a, codeLines) = compile expression
         return $ codeLines <> ["return " <> a <> ";"]
 
-doOtherStuff :: IO () 
-doOtherStuff = 
+doOtherStuff :: Int -> IO () 
+doOtherStuff limit = 
     do
-        let ew = runLang testProgram3 :: Either String World
+        let ew = runLang limit testProgram3 :: Either String World
         either putStrLn (T.putStr . printWorld) ew

@@ -42,8 +42,8 @@ floatNamespaceOps = NamespaceOps (Namespace "Float") literalParser floatOps
       , subtractOp floatProxy
       , multiplyOp floatProxy
       , divideOp floatProxy
-      , convertOp "roundToInt" (round :: Float -> Int)
-      , convertOp  "roundToInteger" (round :: Float -> Int)
+      , convertOp (OpName "roundToInt") (round :: Float -> Int)
+      , convertOp  (OpName "roundToInteger") (round :: Float -> Int)
       ]
     literalParser = Just $ fmap (literalOp floatProxy) . textRead (T.signed T.rational)
 
@@ -57,7 +57,7 @@ intNamespaceOps = NamespaceOps (Namespace "Int") literalParser intOps
       , multiplyOp intProxy
       , divOp intProxy
       , remOp intProxy
-      , convertOp "fromIntegral" (fromIntegral :: Int -> Float)
+      , convertOp (OpName "fromIntegral") (fromIntegral :: Int -> Float)
       ]
     literalParser = Just $ fmap (literalOp intProxy) . textRead (T.signed T.decimal)
 
@@ -71,7 +71,7 @@ integerNamespaceOps = NamespaceOps (Namespace "Integer") literalParser intOps
       , multiplyOp intProxy
       , divOp intProxy
       , remOp intProxy
-      , convertOp "fromIntegral" (fromIntegral :: Integer -> Float)
+      , convertOp (OpName "fromIntegral") (fromIntegral :: Integer -> Float)
       ]
     literalParser = Just $ fmap (literalOp intProxy) . textRead (T.signed T.decimal)
 
