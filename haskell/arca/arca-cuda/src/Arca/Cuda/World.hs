@@ -72,27 +72,23 @@ instance HasStackLens World I where
 instance HasStackLens World F where
     stackLens = floatStack
 
-floatRGenCudaCall :: Text
-floatRGenCudaCall = "curand(&localState)"
-
 randGenCallOp :: StackOp World
-randGenCallOp = applyNamespace (Namespace "Float") $ randGenCallPartialOp
-
-randGenCallPartialOp :: PartialStackOp World
-randGenCallPartialOp = callOp fp (OpName "rgen") floatRGenCudaCall
-    where fp = Proxy :: Proxy C_Float
+randGenCallOp = psoToSo (Namespace "Float") $ callOp fp (OpName "rgen") floatRGenCudaCall
+    where 
+        fp = Proxy :: Proxy C_Float
+        floatRGenCudaCall = "curand(&localState)"
 
 cudaWorldOps :: Array Int (StackOp World)
 cudaWorldOps = listArray (0,length stackops - 1) stackops
     where
         (NamespaceOps namespace _ pops) = cudaNamespaceOps
-        stackops = map (applyNamespace namespace) pops
+        stackops = map (psoToSo namespace) pops
 
 execWorldOps :: Array Int (StackOp World)
 execWorldOps = listArray (0,length stackops - 1) stackops
     where
         (NamespaceOps namespace _ pops) = execNamespaceOps
-        stackops = map (applyNamespace namespace) pops
+        stackops = map (psoToSo namespace) pops
 
 randomElementSampler :: forall g m. (MonadState g m, RandomGen g) => m (StackOp World)
 randomElementSampler =
@@ -101,12 +97,12 @@ randomElementSampler =
             genFloat :: m (StackOp World)
             genFloat = do
                 r <- state $ random
-                return $ applyNamespace (Namespace "Float") $ literalOp . C_Float $ r
+                return $ psoToSo (Namespace "Float") $ literalOp . C_Float $ r
 
             genInt :: m (StackOp World)
             genInt = do
                 r <- state $ random
-                return $ applyNamespace (Namespace "Int") $ literalOp . C_Int $ r
+                return $ psoToSo (Namespace "Int") $ literalOp . C_Int $ r
 
             genVariable :: m (StackOp World)
             genVariable = pure randGenCallOp
@@ -175,7 +171,7 @@ floatNamespaceOps = NamespaceOps (Namespace "Float") litParser floatOps
             , subtractOp fp
             , multiplyOp fp
             , divideOp fp
-            , randGenCallPartialOp
+            , soToPso randGenCallOp
             , dupOpAST fp
             ] where fp = Proxy :: Proxy C_Float
 
@@ -200,6 +196,7 @@ doStuff limit =
             Left err -> print err
             Right t -> 
                 do
+                    print $ any (== randGenCallOp) t
                     putStrLn $ drawLanguageTree $ fmap show t
                     T.putStr . printWorld $ runProg limit $ Exec t
 

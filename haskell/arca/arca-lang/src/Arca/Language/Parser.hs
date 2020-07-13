@@ -30,7 +30,7 @@ buildParserNamespace (NamespaceOps namespace mliteralParser partialStackOps) = (
   where
     opMap = Map.fromList $ map f sops
       where f sop = (unOpName $ stackOpName sop, sop)
-            sops = map (applyNamespace namespace) partialStackOps
+            sops = map (psoToSo namespace) partialStackOps
     lookupOp t = 
       case opMap Map.!? t of
         Just op -> return op
@@ -40,7 +40,7 @@ buildParserNamespace (NamespaceOps namespace mliteralParser partialStackOps) = (
             Just literalParser -> 
               do 
                 a <- literalParser t
-                return $ applyNamespace namespace $ a
+                return $ psoToSo namespace $ a
 
 opify :: Traversable t => WorldParserMap w -> t StackOpText -> Either String (t (StackOp w))
 opify m = traverse (findOp m)

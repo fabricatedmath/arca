@@ -49,19 +49,27 @@ data StackOp w =
   , stackOpNamespace :: Namespace
   }
 
-instance Show (StackOp w) where
-  show = T.unpack . showt
-
-instance TextShow (StackOp w) where
-  showb sop = T.fromText (unNamespace $ stackOpNamespace sop) <> singleton '.' <> T.fromText (unOpName $ stackOpName sop)
-
-applyNamespace :: Namespace -> PartialStackOp w -> StackOp w
-applyNamespace namespace (PartialStackOp opName f) = 
+psoToSo :: Namespace -> PartialStackOp w -> StackOp w
+psoToSo namespace (PartialStackOp opName f) = 
   StackOp 
   { stackOpFunc = f
   , stackOpName = opName
   , stackOpNamespace = namespace
   }
+
+soToPso :: StackOp w -> PartialStackOp w
+soToPso sop = PartialStackOp (stackOpName sop) (stackOpFunc sop)
+
+instance Eq (StackOp w) where
+  (==) sop1 sop2 = 
+    stackOpNamespace sop1 == stackOpNamespace sop2 && 
+    stackOpName sop1 == stackOpName sop2
+
+instance Show (StackOp w) where
+  show = T.unpack . showt
+
+instance TextShow (StackOp w) where
+  showb sop = T.fromText (unNamespace $ stackOpNamespace sop) <> singleton '.' <> T.fromText (unOpName $ stackOpName sop)
 
 textRead :: Reader a -> Text -> Either String a
 textRead reader t = 
