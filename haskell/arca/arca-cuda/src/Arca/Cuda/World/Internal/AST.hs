@@ -43,7 +43,7 @@ ratchetId :: HasIdentifier w => State w Int
 ratchetId = idLens %%= (\i -> (i,i+1))
 
 data AST o where
-    Call :: Int -> Text -> AST o
+    Call :: Int -> Text -> AST o -- | add var name to compile?
     Literal :: Int -> o -> AST o
     Variable :: Text -> AST o
     UnaryExpression :: 
@@ -53,7 +53,7 @@ data AST o where
         , astFuncName :: Text
         , astOperand :: AST o1
         } -> AST o
-    BinaryExpression :: 
+    BinaryExpression :: -- | split infix and prefix into separates?
         ( C_Type o1, Show o1, TextShow o1, Typeable o1
         , C_Type o2, Show o2, TextShow o2, Typeable o2
         ) =>
@@ -250,15 +250,25 @@ compile ast =
                         tell $ pure $ lhs <> rhs
                 pure var
 
+-- | split in and out for infix and accessor field
+
 data OneArg a = OneArg a
 data TwoArg a b = TwoArg a b
 data ThreeArg a b c = ThreeArg a b c
 data FourArg a b c d = FourArg a b c d
 
+{-
+data OneArg a = OneArg a
+data TwoArg a b = TwoArg a b
+data ThreeArg a b c = ThreeArg a b c
+data FourArg a b c d = FourArg a b c d
+-}
+
+
+-- | add constructor for output args to carry accessor fields for multi arg returns
 data Op i o = 
     Op 
-    { opIsInfix :: Bool
-    , opName :: Text
+    { opName :: Text
     }
 
 ctype :: C_Type a => a -> Text
@@ -285,6 +295,8 @@ instance
     , C_Type o2, Show o2, TextShow o2, Typeable o2
     ) => ToExpression (TwoArg (AST o1) (AST o2)) where
     toExpression i isInfix t (TwoArg a b) = BinaryExpression i isInfix t a b
+
+-- | Tag TwoArg with infix, can get rid of isInifx
 
 instance 
     ( C_Type o1, Show o1, TextShow o1, Typeable o1

@@ -78,6 +78,12 @@ randGenCallOp = psoToSo (Namespace "Float") $ callOp fp (OpName "rgen") floatRGe
         fp = Proxy :: Proxy C_Float
         floatRGenCudaCall = "curand(&localState)"
 
+usesCurand :: Foldable t => t (StackOp World) -> Bool
+usesCurand = any (\x -> any (== x) randStackOps)
+
+randStackOps :: [StackOp World]
+randStackOps = [randGenCallOp]
+
 cudaWorldOps :: Array Int (StackOp World)
 cudaWorldOps = listArray (0,length stackops - 1) stackops
     where
@@ -196,7 +202,7 @@ doStuff limit =
             Left err -> print err
             Right t -> 
                 do
-                    print $ any (== randGenCallOp) t
+                    print $ usesCurand t
                     putStrLn $ drawLanguageTree $ fmap show t
                     T.putStr . printWorld $ runProg limit $ Exec t
 
