@@ -49,26 +49,26 @@ class ToExpression a where
 instance
     ( C_Type o1, Show o1, TextShow o1, Typeable o1
     ) => ToExpression (OneArg (AST o1)) where
-    toExpression i t (OneArg a) = UnaryExpression i t a
+    toExpression uniqueId t (OneArg a) = UnaryExpression uniqueId t a
 
 instance
     ( C_Type o1, Show o1, TextShow o1, Typeable o1
     , C_Type o2, Show o2, TextShow o2, Typeable o2
     ) => ToExpression (TwoArg (AST o1) (AST o2)) where
-    toExpression i t (TwoArg a b) = BinaryExpression i t a b
+    toExpression uniqueId t (TwoArg a b) = BinaryExpression uniqueId t a b
 
 instance
     ( C_Type o1, Show o1, TextShow o1, Typeable o1
     , C_Type o2, Show o2, TextShow o2, Typeable o2
     ) => ToExpression (TwoArgInfix (AST o1) (AST o2)) where
-    toExpression i t (TwoArgInfix a b) = BinaryExpressionInfix i t a b
+    toExpression uniqueId t (TwoArgInfix a b) = BinaryExpressionInfix uniqueId t a b
 
 instance
     ( C_Type o1, Show o1, TextShow o1, Typeable o1
     , C_Type o2, Show o2, TextShow o2, Typeable o2
     , C_Type o3, Show o3, TextShow o3, Typeable o3
     ) => ToExpression (ThreeArg (AST o1) (AST o2) (AST o3)) where
-    toExpression i t (ThreeArg a b c) = TrinaryExpression i t a b c
+    toExpression uniqueId t (ThreeArg a b c) = TrinaryExpression uniqueId t a b c
 
 instance
     ( C_Type o1, Show o1, TextShow o1, Typeable o1
@@ -76,7 +76,7 @@ instance
     , C_Type o3, Show o3, TextShow o3, Typeable o3
     , C_Type o4, Show o4, TextShow o4, Typeable o4
     ) => ToExpression (FourArg (AST o1) (AST o2) (AST o3) (AST o4)) where
-    toExpression i t (FourArg a b c d) = QuadrinaryExpression i t a b c d
+    toExpression uniqueId t (FourArg a b c d) = QuadrinaryExpression uniqueId t a b c d
 
 {- OpIn -}
 
@@ -154,14 +154,14 @@ instance
 
 {- OpOut -}
 
-class OpOut w a b where
-    opout :: Proxy b -> Text -> a -> State w ()
+class OpOut w i o where
+    opout :: Proxy o -> Text -> i -> State w ()
 
-instance forall w i a o1. 
+instance forall w i o a. 
     ( ToExpression i, HasIdentifier w 
-    , a ~ AST o1, HasStackLens w a
-    ) => OpOut w i a where
-    opout Proxy t a = 
+    , o ~ AST a, HasStackLens w o
+    ) => OpOut w i o where
+    opout Proxy t i = 
         do
-            i <- ratchetId
-            pushL (stackLens :: StackLens w a) $ toExpression i t a
+            uniqueId <- ratchetId
+            pushL (stackLens :: StackLens w o) $ toExpression uniqueId t i

@@ -51,7 +51,7 @@ data World =
     { _execStack :: Stack (Exec World)
     , _intStack :: Stack I
     , _floatStack :: Stack F
-    
+
     , _float2Stack :: Stack F2
     , _float4Stack :: Stack F4
     , _int2Stack :: Stack I2
@@ -229,7 +229,8 @@ instance HasNamespaces World where
         , intNamespaceOps
         , floatNamespaceOps
         , execNamespaceOps
-        ] <> vectorNamespaceOps
+        ] <> 
+        vectorNamespaceOps
 
 doStuff2 :: Int -> IO () 
 doStuff2 limit = 
