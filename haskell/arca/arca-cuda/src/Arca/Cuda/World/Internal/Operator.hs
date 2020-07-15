@@ -160,47 +160,8 @@ class OpOut w a b where
 instance forall w i a o1. 
     ( ToExpression i, HasIdentifier w 
     , a ~ AST o1, HasStackLens w a
-    ) => OpOut w i (OneArg a) where
+    ) => OpOut w i a where
     opout Proxy t a = 
         do
             i <- ratchetId
             pushL (stackLens :: StackLens w a) $ toExpression i t a
-
-instance forall w i a o1 b o2. 
-    ( ToExpression i, HasIdentifier w 
-    , a ~ AST o1, HasStackLens w a
-    , b ~ AST o2, HasStackLens w b
-    ) => OpOut w i (TwoArg a b) where
-    opout Proxy t a = 
-        do
-            i <- ratchetId
-            pushL (stackLens :: StackLens w a) $ toExpression i t a
-            pushL (stackLens :: StackLens w b) $ toExpression i t a
-
-instance forall w i a o1 b o2 c o3. 
-    ( ToExpression i, HasIdentifier w 
-    , a ~ AST o1, HasStackLens w a
-    , b ~ AST o2, HasStackLens w b
-    , c ~ AST o3, HasStackLens w c
-    ) => OpOut w i (ThreeArg a b c) where
-    opout Proxy t a = 
-        do
-            i <- ratchetId
-            pushL (stackLens :: StackLens w a) $ toExpression i t a
-            pushL (stackLens :: StackLens w b) $ toExpression i t a
-            pushL (stackLens :: StackLens w c) $ toExpression i t a
-
-instance forall w i a o1 b o2 c o3 d o4. 
-    ( ToExpression i, HasIdentifier w 
-    , a ~ AST o1, HasStackLens w a
-    , b ~ AST o2, HasStackLens w b
-    , c ~ AST o3, HasStackLens w c
-    , d ~ AST o4, HasStackLens w d
-    ) => OpOut w i (FourArg a b c d) where
-    opout Proxy t a = 
-        do
-            i <- ratchetId
-            pushL (stackLens :: StackLens w a) $ toExpression i t a
-            pushL (stackLens :: StackLens w b) $ toExpression i t a
-            pushL (stackLens :: StackLens w c) $ toExpression i t a
-            pushL (stackLens :: StackLens w d) $ toExpression i t a

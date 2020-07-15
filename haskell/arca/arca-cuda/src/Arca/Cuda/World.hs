@@ -51,8 +51,12 @@ data World =
     { _execStack :: Stack (Exec World)
     , _intStack :: Stack I
     , _floatStack :: Stack F
+    
     , _float2Stack :: Stack F2
     , _float4Stack :: Stack F4
+    , _int2Stack :: Stack I2
+    , _int4Stack :: Stack I4
+
     , _identifier :: UniqueId
     } deriving (Generic, Show)
       deriving TextShow via FromGeneric World
@@ -65,8 +69,12 @@ instance HasEmpty World where
         { _execStack = empty
         , _intStack = empty
         , _floatStack = empty
+
         , _float2Stack = empty
         , _float4Stack = empty
+        , _int2Stack = empty
+        , _int4Stack = empty
+
         , _identifier = initUniqueId
         }
 
@@ -87,6 +95,12 @@ instance HasStackLens World F2 where
 
 instance HasStackLens World F4 where
     stackLens = float4Stack
+
+instance HasStackLens World I2 where
+    stackLens = int2Stack
+
+instance HasStackLens World I4 where
+    stackLens = int4Stack
 
 randGenCallOp :: StackOp World
 randGenCallOp = psoToSo (Namespace "Float") $ callOp fp (OpName "rgen") floatRGenCudaCall
@@ -201,6 +215,8 @@ vectorNamespaceOps :: [NamespaceOps World]
 vectorNamespaceOps = 
     [ NamespaceOps (Namespace "Float2") Nothing [packF2, unpackF2]
     , NamespaceOps (Namespace "Float4") Nothing [packF4, unpackF4]
+    , NamespaceOps (Namespace "Int2") Nothing [packI2, unpackI2]
+    , NamespaceOps (Namespace "Int4") Nothing [packI4, unpackI4]
     ]
 
 execNamespaceOps :: NamespaceOps World
@@ -233,7 +249,11 @@ doStuff limit =
     do
         let float4Ex = "(Float.1 Float.2 Float.3 Float.4 Float4.make_float4 Float4.unpack_float4 Float.+ Float.+ Float.+)"
             float2Ex = "(Float.1 Float.2 Float2.make_float2 Float2.unpack_float2 Float.*)"
-            prog = "(" <> float4Ex <> " " <> float2Ex <> " Float./" <> ")"
+            int4Ex = "(Int.1 Int.2 Int.3 Int.4 Int4.make_int4 Int4.unpack_int4 Int.+ Int.+ Int.+)"
+            int2Ex = "(Int.1 Int.2 Int2.make_int2 Int2.unpack_int2 Int.*)"
+            progFloat = "(" <> float4Ex <> " " <> float2Ex <> " Float./" <> ")"
+            progInt = "(" <> int4Ex <> " " <> int2Ex <> " Int.*" <> ")"
+            prog = "(" <> progFloat <> " " <> progInt <> ")"
             ew = parseLang prog :: Either String (LanguageTree (StackOp World))
         case ew of 
             Left err -> print err

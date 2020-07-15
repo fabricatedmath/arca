@@ -202,7 +202,7 @@ generateFuncCode' fdef@(FunctionDef fretType fn fargs comment _originalText) =
     do
         argTypes <- mapM matchType $ usedTypes fdef
         ia <- convertArgType fargs
-        oa <- convertArgType [fretType]
+        oa <- matchType fretType
         let
             commentLine = "-- | " <> comment
             typeDecl = fn <> " :: " <> typeConstraints <> retType

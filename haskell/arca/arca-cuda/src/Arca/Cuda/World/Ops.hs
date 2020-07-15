@@ -28,16 +28,16 @@ callOp _ callName call = PartialStackOp callName $
         pushL (stackLens :: StackLens w (AST a)) $ Call i call
 
 addOp :: forall a o w. (o ~ AST a, C_Type a, HasIdentifier w, HasStackLens w o) => Proxy a -> PartialStackOp w
-addOp _ = opify (Op "+" :: Op (TwoArgInfix o o) (OneArg o))
+addOp _ = opify (Op "+" :: Op (TwoArgInfix o o) o)
 
 subtractOp :: forall a o w. (o ~ AST a, C_Type a, HasIdentifier w, HasStackLens w o) => Proxy a -> PartialStackOp w
-subtractOp _ = opify (Op "-" :: Op (TwoArgInfix o o) (OneArg o))
+subtractOp _ = opify (Op "-" :: Op (TwoArgInfix o o) o)
 
 multiplyOp :: forall a o w. (o ~ AST a, C_Type a, HasIdentifier w, HasStackLens w o) => Proxy a -> PartialStackOp w
-multiplyOp _ = opify (Op "*" :: Op (TwoArgInfix o o) (OneArg o))
+multiplyOp _ = opify (Op "*" :: Op (TwoArgInfix o o) o)
 
 divideOp :: forall a o w. (o ~ AST a, C_Type a, HasIdentifier w, HasStackLens w o) => Proxy a -> PartialStackOp w
-divideOp _ = opify (Op "/" :: Op (TwoArgInfix o o) (OneArg o))
+divideOp _ = opify (Op "/" :: Op (TwoArgInfix o o) o)
 
 dupOp :: forall a w. HasStackLens w a => Proxy a -> PartialStackOp w
 dupOp _ = PartialStackOp (OpName "dup") $  do
