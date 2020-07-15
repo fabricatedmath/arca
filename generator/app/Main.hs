@@ -51,8 +51,8 @@ buildFile targetDir filepath =
                 , ""
                 , "module " <> modulePath <> "." <> moduleName <> " where"
                 , ""
-                , "import Epigenisys.Language"
-                , "import Epigenisys.Worlds.CudaWorld.Internal"
+                , "import Arca.Language"
+                , "import Arca.Cuda.World.Internal"
                 , ""
                 , "-- | Exported Lists"
                 , ""
@@ -100,7 +100,7 @@ compiledDirectory = $( stringE =<< (runIO $ getCurrentDirectory) )
 main :: IO ()
 main = 
     do
-        let targetDir = compiledDirectory </> "../haskell/src"
+        let targetDir = compiledDirectory </> "../haskell/arca/arca-cuda/src/"
         filesToGen <- listDirectories "descriptions"
         mapM (buildFile targetDir) filesToGen >>= print
 
@@ -211,7 +211,7 @@ generateFuncCode' fdef@(FunctionDef fretType fn fargs comment _originalText) =
                             | otherwise = "(HasIdentifier w, " <> T.intercalate ", " (map ("HasStackLens w " <>) argTypes) <> ") => "
                       retType = "PartialStackOp w"
             funcDecl = fn <> " = " <> "opify (" <> op <> ")"
-                where op = "Op False " <> ("\"" <> fn <> "\"") <> " :: Op " <> ia <> " " <> oa
+                where op = "Op " <> ("\"" <> fn <> "\"") <> " :: Op " <> ia <> " " <> oa
         return $ T.unlines [commentLine, typeDecl, funcDecl]
 
 matchType :: LiteralType -> Either String Text

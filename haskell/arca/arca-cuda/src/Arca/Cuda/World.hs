@@ -35,17 +35,25 @@ import Arca.Language.Mutate
 
 import Arca.Cuda.World.Internal
 import Arca.Cuda.World.Ops
+import Arca.Cuda.World.VectorOps
 
-import qualified Arca.Cuda.World.GeneratedOps.IntegerIntrinsics as IntegerIntrinsics
-import qualified Arca.Cuda.World.GeneratedOps.SinglePrecisionMathematicalFunctions as SinglePrecisionMathematicalFunctions
-import qualified Arca.Cuda.World.GeneratedOps.SinglePrecisionIntrinsics as SinglePrecisionIntrinsics
+import qualified Arca.Cuda.World.GeneratedOps.IntegerIntrinsics 
+    as IntegerIntrinsics
+
+import qualified Arca.Cuda.World.GeneratedOps.SinglePrecisionMathematicalFunctions 
+    as SinglePrecisionMathematicalFunctions
+    
+import qualified Arca.Cuda.World.GeneratedOps.SinglePrecisionIntrinsics 
+    as SinglePrecisionIntrinsics
 
 data World = 
     World
     { _execStack :: Stack (Exec World)
     , _intStack :: Stack I
     , _floatStack :: Stack F
-    , _identifier :: Int
+    , _float2Stack :: Stack F2
+    , _float4Stack :: Stack F4
+    , _identifier :: UniqueId
     } deriving (Generic, Show)
       deriving TextShow via FromGeneric World
 
@@ -57,20 +65,28 @@ instance HasEmpty World where
         { _execStack = empty
         , _intStack = empty
         , _floatStack = empty
-        , _identifier = 0
+        , _float2Stack = empty
+        , _float4Stack = empty
+        , _identifier = initUniqueId
         }
 
 instance HasIdentifier World where
     idLens = identifier
 
 instance HasStackLens World (Exec World) where
-  stackLens = execStack
+    stackLens = execStack
 
 instance HasStackLens World I where
     stackLens = intStack
 
 instance HasStackLens World F where
     stackLens = floatStack
+
+instance HasStackLens World F2 where
+    stackLens = float2Stack
+
+instance HasStackLens World F4 where
+    stackLens = float4Stack
 
 randGenCallOp :: StackOp World
 randGenCallOp = psoToSo (Namespace "Float") $ callOp fp (OpName "rgen") floatRGenCudaCall
@@ -181,6 +197,12 @@ floatNamespaceOps = NamespaceOps (Namespace "Float") litParser floatOps
             , dupOpAST fp
             ] where fp = Proxy :: Proxy C_Float
 
+vectorNamespaceOps :: [NamespaceOps World]
+vectorNamespaceOps = 
+    [ NamespaceOps (Namespace "Float2") Nothing [packF2, unpackF2]
+    , NamespaceOps (Namespace "Float4") Nothing [packF4, unpackF4]
+    ]
+
 execNamespaceOps :: NamespaceOps World
 execNamespaceOps = NamespaceOps (Namespace "Exec") Nothing [dupOp execProxy]
     where execProxy = Proxy :: Proxy (Exec World)
@@ -191,10 +213,10 @@ instance HasNamespaces World where
         , intNamespaceOps
         , floatNamespaceOps
         , execNamespaceOps
-        ]
+        ] <> vectorNamespaceOps
 
-doStuff :: Int -> IO () 
-doStuff limit = 
+doStuff2 :: Int -> IO () 
+doStuff2 limit = 
     do
         let prog = "(Exec.dup (Float.1 Float.rgen Float.*) Float.+ Float.dup Float.+)"
             ew = parseLang prog :: Either String (LanguageTree (StackOp World))
@@ -206,6 +228,20 @@ doStuff limit =
                     putStrLn $ drawLanguageTree $ fmap show t
                     T.putStr . printWorld $ runProg limit $ Exec t
 
+doStuff :: Int -> IO () 
+doStuff limit = 
+    do
+        let float4Ex = "(Float.1 Float.2 Float.3 Float.4 Float4.make_float4 Float4.unpack_float4 Float.+ Float.+ Float.+)"
+            float2Ex = "(Float.1 Float.2 Float2.make_float2 Float2.unpack_float2 Float.*)"
+            prog = "(" <> float4Ex <> " " <> float2Ex <> " Float./" <> ")"
+            ew = parseLang prog :: Either String (LanguageTree (StackOp World))
+        case ew of 
+            Left err -> print err
+            Right t -> 
+                do
+                    print $ usesCurand t
+                    putStrLn $ drawLanguageTree $ fmap show t
+                    T.putStr . printWorld $ runProg limit $ Exec t
 
 runStuff :: Int -> IO ()
 runStuff limit = 
@@ -262,7 +298,7 @@ testProgram3 :: Text
 testProgram3 = "(Float.1 Float.2 Float.+ Float.8 Float./ Int.1 Int.3 Int.*)"
 
 printWorld :: World -> Text
-printWorld w = T.intercalate "\n" $ filter (not . T.null) [printStacks (_intStack w), printStacks (_floatStack w)]
+printWorld w = T.intercalate "\n" $ filter (not . T.null) [printStacks (_intStack w), printStacks (_floatStack w), printStacks (_float4Stack w)]
 
 printStacks :: forall o. (C_Type o, Show o, TextShow o, Typeable o) => Stack (AST o) -> Text
 printStacks s = 

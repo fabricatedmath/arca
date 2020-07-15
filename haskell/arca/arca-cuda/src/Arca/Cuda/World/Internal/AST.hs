@@ -1,30 +1,18 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE DerivingVia #-}
-{-# LANGUAGE EmptyDataDeriving #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 module Arca.Cuda.World.Internal.AST 
-    ( AST(..), compile, drawASTString
-    , C_Type(..), HasIdentifier(..)
-    , ToExpression, OpIn, OpOut
-    , Opify(..), Op(..)
-    , OneArg, TwoArg, ThreeArg, FourArg
-    , ratchetId
+    ( AST(..), C_Type(..)
+    , compile, drawASTString
+    , ratchetId, initUniqueId, HasIdentifier(..), UniqueId
     ) where
 
 import Control.Lens
 import Control.Monad.RWS.Strict
 
 import Data.List (intersperse, intercalate)
-import Data.Maybe (isNothing)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as S
 import Data.Text (Text)
@@ -36,29 +24,55 @@ import TextShow
 
 import Arca.Language
 
-class HasIdentifier w where
-    idLens :: Lens' w Int
+newtype UniqueId = UniqueId Int
+    deriving (Num, Show, TextShow)
 
-ratchetId :: HasIdentifier w => State w Int
+initUniqueId :: UniqueId
+initUniqueId = UniqueId 0
+
+class HasIdentifier w where
+    idLens :: Lens' w UniqueId
+
+ratchetId :: HasIdentifier w => State w UniqueId
 ratchetId = idLens %%= (\i -> (i,i+1))
 
+ctype :: C_Type a => a -> Text
+ctype = ctypep . Just
+
+class (Show a, TextShow a, Typeable a) => C_Type a where
+    -- | Name of c type in c language, e.g. "unsigned long long int"
+    ctypep :: proxy a -> Text
+    -- | Text representation of value, e.g. "395" or "2"
+    cval :: a -> Text
+
 data AST o where
-    Call :: Int -> Text -> AST o -- | add var name to compile?
-    Literal :: Int -> o -> AST o
+    Accessor :: 
+        (C_Type o1, Show o1, TextShow o1, Typeable o1
+        ) => UniqueId -> Text -> AST o1 -> AST o
+    Call :: UniqueId -> Text -> AST o
+    Literal :: UniqueId -> o -> AST o
     Variable :: Text -> AST o
     UnaryExpression :: 
         ( C_Type o1, Show o1, TextShow o1, Typeable o1
         ) => 
-        { astOpId :: Int
+        { astOpId :: UniqueId
         , astFuncName :: Text
         , astOperand :: AST o1
         } -> AST o
-    BinaryExpression :: -- | split infix and prefix into separates?
+    BinaryExpression ::
         ( C_Type o1, Show o1, TextShow o1, Typeable o1
         , C_Type o2, Show o2, TextShow o2, Typeable o2
         ) =>
-        { astOpId :: Int
-        , astIsInfix :: Bool
+        { astOpId :: UniqueId
+        , astFuncName :: Text
+        , astLeftOp :: AST o1
+        , astRightOp :: AST o2
+        } -> AST o
+    BinaryExpressionInfix ::
+        ( C_Type o1, Show o1, TextShow o1, Typeable o1
+        , C_Type o2, Show o2, TextShow o2, Typeable o2
+        ) =>
+        { astOpId :: UniqueId
         , astFuncName :: Text
         , astLeftOp :: AST o1
         , astRightOp :: AST o2
@@ -68,7 +82,7 @@ data AST o where
         , C_Type o2, Show o2, TextShow o2, Typeable o2
         , C_Type o3, Show o3, TextShow o3, Typeable o3
         ) => 
-        { astOpId :: Int
+        { astOpId :: UniqueId
         , astFuncName :: Text
         , astOp1 :: AST o1
         , astOp2 :: AST o2
@@ -80,7 +94,7 @@ data AST o where
         , C_Type o3, Show o3, TextShow o3, Typeable o3
         , C_Type o4, Show o4, TextShow o4, Typeable o4
         ) => 
-        { astOpId :: Int
+        { astOpId :: UniqueId
         , astFuncName :: Text
         , astOp1 :: AST o1
         , astOp2 :: AST o2
@@ -89,6 +103,8 @@ data AST o where
         } -> AST o
 
 instance (Show o, Typeable o) => Show (AST o) where
+    show a@(Accessor _ident accessorName o1) = 
+        "Accessor(" <> show o1 <> "." <> T.unpack accessorName <> " :: " <> show (typeRep a) <> ")"
     show c@(Call _ident call) = 
         "Call(" <> show call <> " :: " <> show (typeRep c) <> ")"
     show (Literal _ident o) = 
@@ -98,9 +114,11 @@ instance (Show o, Typeable o) => Show (AST o) where
     show e@(UnaryExpression _ident name o1) = 
         T.unpack name <> "( " <> args <> " )" <> " :: " <> show (typeRep e)
             where args = intercalate ", " [show o1]
-    show e@(BinaryExpression _ident _isInfix name o1 o2) = 
+    show e@(BinaryExpression _ident name o1 o2) = 
         T.unpack name <> "( " <> args <> " )" <> " :: " <> show (typeRep e)
             where args = intercalate ", " $ [show o1, show o2]
+    show e@(BinaryExpressionInfix _ident name o1 o2) = 
+        "( " <> show o1 <> " " <> T.unpack name <> " " <> show o2 <> " )" <> " :: " <> show (typeRep e)
     show e@(TrinaryExpression _ident name o1 o2 o3) = 
         T.unpack name <> "( " <> args <> " )" <> " :: " <> show (typeRep e)
             where args = intercalate ", " [show o1, show o2, show o3]
@@ -109,6 +127,8 @@ instance (Show o, Typeable o) => Show (AST o) where
             where args = intercalate ", " [show o1, show o2, show o3, show o4]
 
 instance (TextShow o, Typeable o) => TextShow (AST o) where
+    showb a@(Accessor _ident accessorName o1) =
+        "Accessor(" <> showb o1 <> "." <> T.fromText accessorName <> " :: " <> showb (typeRep a) <> ")"
     showb c@(Call _ident call) = 
         "Call(" <> T.fromText call <> " :: " <> showb (typeRep c) <> ")"
     showb (Literal _ident o) = 
@@ -118,9 +138,11 @@ instance (TextShow o, Typeable o) => TextShow (AST o) where
     showb e@(UnaryExpression _ident name o1) = 
         T.fromText name <> "( " <> args <> " )" <> " :: " <> showb (typeRep e)
             where args = mconcat $ intersperse ", " [showb o1]
-    showb e@(BinaryExpression _ident _isInfix name o1 o2) = 
+    showb e@(BinaryExpression _ident name o1 o2) = 
         T.fromText name <> "( " <> args <> " )" <> " :: " <> showb (typeRep e)
             where args = mconcat $ intersperse ", " $ [showb o1, showb o2]
+    showb e@(BinaryExpressionInfix _ident name o1 o2) = 
+        "( " <> showb o1 <> " " <> T.fromText name <> " " <> showb o2 <> " )" <> " :: " <> showb (typeRep e)
     showb e@(TrinaryExpression _ident name o1 o2 o3) = 
         T.fromText name <> "( " <> args <> " )" <> " :: " <> showb (typeRep e)
             where args = mconcat $ intersperse ", " [showb o1, showb o2, showb o3]
@@ -141,6 +163,8 @@ drawASTString = unlines . draw
         shift first other = zipWith (++) (first : repeat other)
 
         draw :: (Show o, Typeable o) => AST o -> [String]
+        draw a@(Accessor n accessorName o1) = 
+            lines $ "Accessor" <> " - " <> show n <> " - " <> show (typeRep o1) <> "." <> show accessorName <> ") :: " <> show (typeOf a)
         draw c@(Call n call) = 
             lines $ "Call" <> " - " <> show n <> " - " <> "(" <> show call <> ") :: " <> show (typeOf c)
         draw (Literal n o) = 
@@ -150,8 +174,11 @@ drawASTString = unlines . draw
         draw e@(UnaryExpression n name o1) = 
             lines ("UnaryExpression" <> " - " <> show n <> " - " <> show name <> " :: " <> args) <> drawSubTrees [o1]
                 where args = intercalate " -> " $ map show [typeRep o1, typeRep e]
-        draw e@(BinaryExpression n _isInfix name o1 o2) = 
+        draw e@(BinaryExpression n name o1 o2) = 
             lines ("BinaryExpression" <> " - " <> show n <> " - " <> show name <> " :: " <> args) <> drawSubTrees [o1] <> drawSubTrees [o2]
+                where args = intercalate " -> " $ map show [typeRep o1, typeRep o2, typeRep e]
+        draw e@(BinaryExpressionInfix n name o1 o2) = 
+            lines ("BinaryExpressionInfix" <> " - " <> show n <> " - " <> show name <> " :: " <> args) <> drawSubTrees [o1] <> drawSubTrees [o2]
                 where args = intercalate " -> " $ map show [typeRep o1, typeRep o2, typeRep e]
         draw e@(TrinaryExpression n name o1 o2 o3) = 
             lines ("TrinaryExpression" <> " - " <> show n <> " - " <> show name <> " :: " <> args) <> drawSubTrees [o1] <> drawSubTrees [o2] <> drawSubTrees [o3]
@@ -170,17 +197,28 @@ compile ast =
         codeLines = map (`T.append` ";") $ s
     in (a, codeLines)
     where 
-        gvn :: Int -> Text
-        gvn n = "a" <> showt n
+        gvn :: UniqueId -> Text
+        gvn (UniqueId n) = "a" <> showt n
 
-        checkAndAdd :: MonadState IntSet m => Int -> m Bool
-        checkAndAdd i =
+        checkAndAdd :: MonadState IntSet m => UniqueId -> m Bool
+        checkAndAdd (UniqueId i) =
             do
                 s <- get
                 put $ S.insert i s
                 pure $ S.member i s
 
         compile' :: (C_Type o, TextShow o, Typeable o) => AST o -> CompileMonad Text
+        compile' a@(Accessor i accessorName o) =
+            do
+                b <- checkAndAdd i
+                let var = gvn i
+                unless b $ 
+                    do
+                        ovar <- compile' o
+                        let lhs = ctypep a <> " " <> var <> " = "
+                            rhs = ovar <> "." <> accessorName
+                        tell $ pure $ lhs <> rhs
+                pure var
         compile' c@(Call i call) = 
             do
                 b <- checkAndAdd i
@@ -206,7 +244,7 @@ compile ast =
                                 where args = ovar
                         tell $ pure $ lhs <> rhs
                 pure var
-        compile' e@(BinaryExpression i isInfix name o1 o2) = 
+        compile' e@(BinaryExpression i name o1 o2) = 
             do
                 b <- checkAndAdd i
                 let var = gvn i
@@ -215,9 +253,20 @@ compile ast =
                         ovar1 <- compile' o1
                         ovar2 <- compile' o2
                         let lhs = ctypep e <> " " <> var <> " = "
-                            rhs | isInfix = ovar1 <> " " <> name <> " " <> ovar2
-                                | otherwise = name <> "(" <> args <> ")"
-                                    where args = T.intercalate ", " [ovar1, ovar2]
+                            rhs = name <> "(" <> args <> ")"
+                                where args = T.intercalate ", " [ovar1, ovar2]
+                        tell $ pure $ lhs <> rhs
+                pure var
+        compile' e@(BinaryExpressionInfix i name o1 o2) = 
+            do
+                b <- checkAndAdd i
+                let var = gvn i
+                unless b $ 
+                    do
+                        ovar1 <- compile' o1
+                        ovar2 <- compile' o2
+                        let lhs = ctypep e <> " " <> var <> " = "
+                            rhs = ovar1 <> " " <> name <> " " <> ovar2
                         tell $ pure $ lhs <> rhs
                 pure var
         compile' e@(TrinaryExpression i name o1 o2 o3) = 
@@ -250,192 +299,3 @@ compile ast =
                         tell $ pure $ lhs <> rhs
                 pure var
 
--- | split in and out for infix and accessor field
-
-data OneArg a = OneArg a
-data TwoArg a b = TwoArg a b
-data ThreeArg a b c = ThreeArg a b c
-data FourArg a b c d = FourArg a b c d
-
-{-
-data OneArg a = OneArg a
-data TwoArg a b = TwoArg a b
-data ThreeArg a b c = ThreeArg a b c
-data FourArg a b c d = FourArg a b c d
--}
-
-
--- | add constructor for output args to carry accessor fields for multi arg returns
-data Op i o = 
-    Op 
-    { opName :: Text
-    }
-
-ctype :: C_Type a => a -> Text
-ctype = ctypep . Just
-
-class (Show a, TextShow a, Typeable a) => C_Type a where
-    -- | Name of c type in c language, e.g. "unsigned long long int"
-    ctypep :: proxy a -> Text
-    -- | Text representation of value, e.g. "395" or "2"
-    cval :: a -> Text
-
-{- ToExpression -}
-
-class ToExpression a where
-    toExpression :: Int -> Bool -> Text -> a -> AST o
-
-instance 
-    ( C_Type o1, Show o1, TextShow o1, Typeable o1
-    ) => ToExpression (OneArg (AST o1)) where
-    toExpression i _ t (OneArg a) = UnaryExpression i t a
-
-instance 
-    ( C_Type o1, Show o1, TextShow o1, Typeable o1
-    , C_Type o2, Show o2, TextShow o2, Typeable o2
-    ) => ToExpression (TwoArg (AST o1) (AST o2)) where
-    toExpression i isInfix t (TwoArg a b) = BinaryExpression i isInfix t a b
-
--- | Tag TwoArg with infix, can get rid of isInifx
-
-instance 
-    ( C_Type o1, Show o1, TextShow o1, Typeable o1
-    , C_Type o2, Show o2, TextShow o2, Typeable o2
-    , C_Type o3, Show o3, TextShow o3, Typeable o3
-    ) => ToExpression (ThreeArg (AST o1) (AST o2) (AST o3)) where
-    toExpression i _isInfix t (ThreeArg a b c) = TrinaryExpression i t a b c
-
-instance 
-    ( C_Type o1, Show o1, TextShow o1, Typeable o1
-    , C_Type o2, Show o2, TextShow o2, Typeable o2
-    , C_Type o3, Show o3, TextShow o3, Typeable o3
-    , C_Type o4, Show o4, TextShow o4, Typeable o4
-    ) => ToExpression (FourArg (AST o1) (AST o2) (AST o3) (AST o4)) where
-    toExpression i _isInfix t (FourArg a b c d) = QuadrinaryExpression i t a b c d
-
-{- Opify -}
-
-class Opify w a where
-    opify :: a -> PartialStackOp w
-
-instance (OpIn w i, OpOut w i o) => Opify w (Op i o) where
-    opify (Op isInfix text) = PartialStackOp (OpName text) $
-        do
-            mi <- opin (Proxy :: Proxy i)
-            case mi of
-                Nothing -> pure ()
-                Just i -> opout isInfix text (Proxy :: Proxy o) i
-
-{- OpOut -}
-
-class OpOut w a b where
-    opout :: Bool -> Text -> Proxy b -> a -> State w ()
-
-instance forall w i a o1. 
-    ( ToExpression i, HasIdentifier w 
-    , a ~ AST o1, HasStackLens w a
-    ) => OpOut w i (OneArg a) where
-    opout isInfix t _ a = 
-        do
-            i <- ratchetId
-            pushL (stackLens :: StackLens w a) $ toExpression i isInfix t a
-
-instance forall w i a o1 b o2. 
-    ( ToExpression i, HasIdentifier w 
-    , a ~ AST o1, HasStackLens w a
-    , b ~ AST o2, HasStackLens w b
-    ) => OpOut w i (TwoArg a b) where
-    opout isInfix t _ a = 
-        do
-            i <- ratchetId
-            pushL (stackLens :: StackLens w a) $ toExpression i isInfix t a
-            pushL (stackLens :: StackLens w b) $ toExpression i isInfix t a
-
-instance forall w i a o1 b o2 c o3. 
-    ( ToExpression i, HasIdentifier w 
-    , a ~ AST o1, HasStackLens w a
-    , b ~ AST o2, HasStackLens w b
-    , c ~ AST o3, HasStackLens w c
-    ) => OpOut w i (ThreeArg a b c) where
-    opout isInfix t _ a = 
-        do
-            i <- ratchetId
-            pushL (stackLens :: StackLens w a) $ toExpression i isInfix t a
-            pushL (stackLens :: StackLens w b) $ toExpression i isInfix t a
-            pushL (stackLens :: StackLens w c) $ toExpression i isInfix t a
-
-instance forall w i a o1 b o2 c o3 d o4. 
-    ( ToExpression i, HasIdentifier w 
-    , a ~ AST o1, HasStackLens w a
-    , b ~ AST o2, HasStackLens w b
-    , c ~ AST o3, HasStackLens w c
-    , d ~ AST o4, HasStackLens w d
-    ) => OpOut w i (FourArg a b c d) where
-    opout isInfix t _ a = 
-        do
-            i <- ratchetId
-            pushL (stackLens :: StackLens w a) $ toExpression i isInfix t a
-            pushL (stackLens :: StackLens w b) $ toExpression i isInfix t a
-            pushL (stackLens :: StackLens w c) $ toExpression i isInfix t a
-            pushL (stackLens :: StackLens w d) $ toExpression i isInfix t a
-
-{- OpIn -}
-
-class OpIn w a where
-    opin:: Proxy a -> State w (Maybe a)
-
-instance
-    HasStackLens w a 
-    => OpIn w (OneArg a) where
-    opin _ = 
-        do
-            w <- get
-            ma <- popL stackLens
-            let m = OneArg <$> ma
-            when (isNothing m) $ put w
-            pure m
-
-instance
-    ( HasStackLens w a
-    , HasStackLens w b
-    ) => OpIn w (TwoArg a b) where
-    opin _ = 
-        do
-            w <- get
-            ma <- popL stackLens
-            mb <- popL stackLens
-            let m = TwoArg <$> ma <*> mb
-            when (isNothing m) $ put w
-            pure m
-
-instance
-    ( HasStackLens w a
-    , HasStackLens w b
-    , HasStackLens w c
-    ) => OpIn w (ThreeArg a b c) where
-    opin _ = 
-        do
-            w <- get
-            ma <- popL stackLens
-            mb <- popL stackLens
-            mc <- popL stackLens
-            let m = ThreeArg <$> ma <*> mb <*> mc
-            when (isNothing m) $ put w
-            pure m
-
-instance
-    ( HasStackLens w a
-    , HasStackLens w b
-    , HasStackLens w c
-    , HasStackLens w d
-    ) => OpIn w (FourArg a b c d) where
-    opin _ = 
-        do
-            w <- get
-            ma <- popL stackLens
-            mb <- popL stackLens
-            mc <- popL stackLens
-            md <- popL stackLens
-            let m = FourArg <$> ma <*> mb <*> mc <*> md
-            when (isNothing m) $ put w
-            pure m

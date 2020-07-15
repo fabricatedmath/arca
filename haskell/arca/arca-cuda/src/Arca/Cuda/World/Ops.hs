@@ -12,6 +12,7 @@ import TextShow
 
 import Arca.Language
 import Arca.Cuda.World.Internal.AST
+import Arca.Cuda.World.Internal.Operator
 
 -- | Helper to build stack op that drops 'a' value into an 'AST a' literal
 literalOp :: forall a w. (TextShow a, HasIdentifier w, HasStackLens w (AST a)) => a -> PartialStackOp w
@@ -21,22 +22,22 @@ literalOp a = PartialStackOp (OpName $ showt a) $
         pushL (stackLens :: StackLens w (AST a)) $ Literal i a
 
 callOp :: forall a w. (TextShow a, HasIdentifier w, HasStackLens w (AST a)) => Proxy a -> OpName -> Text -> PartialStackOp w
-callOp _ opName call = PartialStackOp opName $ 
+callOp _ callName call = PartialStackOp callName $ 
     do
         i <- ratchetId
         pushL (stackLens :: StackLens w (AST a)) $ Call i call
 
 addOp :: forall a o w. (o ~ AST a, C_Type a, HasIdentifier w, HasStackLens w o) => Proxy a -> PartialStackOp w
-addOp _ = opify (Op True "+" :: Op (TwoArg o o) (OneArg o))
+addOp _ = opify (Op "+" :: Op (TwoArgInfix o o) (OneArg o))
 
 subtractOp :: forall a o w. (o ~ AST a, C_Type a, HasIdentifier w, HasStackLens w o) => Proxy a -> PartialStackOp w
-subtractOp _ = opify (Op True "-" :: Op (TwoArg o o) (OneArg o))
+subtractOp _ = opify (Op "-" :: Op (TwoArgInfix o o) (OneArg o))
 
 multiplyOp :: forall a o w. (o ~ AST a, C_Type a, HasIdentifier w, HasStackLens w o) => Proxy a -> PartialStackOp w
-multiplyOp _ = opify (Op True "*" :: Op (TwoArg o o) (OneArg o))
+multiplyOp _ = opify (Op "*" :: Op (TwoArgInfix o o) (OneArg o))
 
 divideOp :: forall a o w. (o ~ AST a, C_Type a, HasIdentifier w, HasStackLens w o) => Proxy a -> PartialStackOp w
-divideOp _ = opify (Op True "/" :: Op (TwoArg o o) (OneArg o))
+divideOp _ = opify (Op "/" :: Op (TwoArgInfix o o) (OneArg o))
 
 dupOp :: forall a w. HasStackLens w a => Proxy a -> PartialStackOp w
 dupOp _ = PartialStackOp (OpName "dup") $  do
