@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -6,7 +7,8 @@
 module Arca.Cuda.World.Internal.AST 
     ( AST(..), C_Type(..)
     , compile, drawASTString
-    , ratchetId, initUniqueId, HasIdentifier(..), UniqueId
+    , ratchetId, initUniqueId, HasIdentifier(..), UniqueId,
+    HasAST
     ) where
 
 import Control.Lens
@@ -45,23 +47,29 @@ class (Show a, TextShow a, Typeable a) => C_Type a where
     -- | Text representation of value, e.g. "395" or "2"
     cval :: a -> Text
 
+type HasAST o = (C_Type o, Show o, TextShow o, Typeable o)
+
+-- | Consider making Text a type variable to support embedding of haskell land values
+
+-- | Can get rid of UniqueId by checking equality of AST?
+
+-- | Boundable ast for while loop? Takes an AST as an argument, maybe?
+
 data AST o where
-    Accessor :: 
-        (C_Type o1, Show o1, TextShow o1, Typeable o1
-        ) => UniqueId -> Text -> AST o1 -> AST o
+    Accessor :: HasAST o1 => UniqueId -> Text -> AST o1 -> AST o
     Call :: UniqueId -> Text -> AST o
     Literal :: UniqueId -> o -> AST o
     Variable :: Text -> AST o
     UnaryExpression :: 
-        ( C_Type o1, Show o1, TextShow o1, Typeable o1
+        ( HasAST o1
         ) => 
         { astOpId :: UniqueId
         , astFuncName :: Text
         , astOperand :: AST o1
         } -> AST o
     BinaryExpression ::
-        ( C_Type o1, Show o1, TextShow o1, Typeable o1
-        , C_Type o2, Show o2, TextShow o2, Typeable o2
+        ( HasAST o1
+        , HasAST o2
         ) =>
         { astOpId :: UniqueId
         , astFuncName :: Text
@@ -69,8 +77,8 @@ data AST o where
         , astRightOp :: AST o2
         } -> AST o
     BinaryExpressionInfix ::
-        ( C_Type o1, Show o1, TextShow o1, Typeable o1
-        , C_Type o2, Show o2, TextShow o2, Typeable o2
+        ( HasAST o1
+        , HasAST o2
         ) =>
         { astOpId :: UniqueId
         , astFuncName :: Text
@@ -78,9 +86,9 @@ data AST o where
         , astRightOp :: AST o2
         } -> AST o
     TrinaryExpression :: 
-        ( C_Type o1, Show o1, TextShow o1, Typeable o1
-        , C_Type o2, Show o2, TextShow o2, Typeable o2
-        , C_Type o3, Show o3, TextShow o3, Typeable o3
+        ( HasAST o1
+        , HasAST o2
+        , HasAST o3
         ) => 
         { astOpId :: UniqueId
         , astFuncName :: Text
@@ -89,10 +97,10 @@ data AST o where
         , astOp3 :: AST o3
         } -> AST o
     QuadrinaryExpression :: 
-        ( C_Type o1, Show o1, TextShow o1, Typeable o1
-        , C_Type o2, Show o2, TextShow o2, Typeable o2
-        , C_Type o3, Show o3, TextShow o3, Typeable o3
-        , C_Type o4, Show o4, TextShow o4, Typeable o4
+        ( HasAST o1
+        , HasAST o2
+        , HasAST o3
+        , HasAST o4
         ) => 
         { astOpId :: UniqueId
         , astFuncName :: Text
@@ -102,7 +110,7 @@ data AST o where
         , astOp4 :: AST o4
         } -> AST o
 
-instance (Show o, Typeable o) => Show (AST o) where
+instance HasAST o => Show (AST o) where
     show a@(Accessor _ident accessorName o1) = 
         "Accessor(" <> show o1 <> "." <> T.unpack accessorName <> " :: " <> show (typeRep a) <> ")"
     show c@(Call _ident call) = 
@@ -126,7 +134,7 @@ instance (Show o, Typeable o) => Show (AST o) where
         T.unpack name <> "( " <> args <> " )" <> " :: " <> show (typeRep e)
             where args = intercalate ", " [show o1, show o2, show o3, show o4]
 
-instance (TextShow o, Typeable o) => TextShow (AST o) where
+instance HasAST o => TextShow (AST o) where
     showb a@(Accessor _ident accessorName o1) =
         "Accessor(" <> showb o1 <> "." <> T.fromText accessorName <> " :: " <> showb (typeRep a) <> ")"
     showb c@(Call _ident call) = 
@@ -151,7 +159,7 @@ instance (TextShow o, Typeable o) => TextShow (AST o) where
             where args = mconcat $ intersperse ", " [showb o1, showb o2, showb o3, showb o4]
 
 -- | Represents AST as multiline tabbed strings expressions
-drawASTString :: (Show o, Typeable o) => AST o -> String
+drawASTString :: HasAST o => AST o -> String
 drawASTString = unlines . draw
     where
         drawSubTrees [] = []
@@ -162,7 +170,7 @@ drawASTString = unlines . draw
 
         shift first other = zipWith (++) (first : repeat other)
 
-        draw :: (Show o, Typeable o) => AST o -> [String]
+        draw :: HasAST o => AST o -> [String]
         draw a@(Accessor n accessorName o1) = 
             lines $ "Accessor" <> " - " <> show n <> " - " <> show (typeRep o1) <> "." <> show accessorName <> ") :: " <> show (typeOf a)
         draw c@(Call n call) = 
@@ -190,7 +198,7 @@ drawASTString = unlines . draw
 type CompileMonad a = RWS () [Text] IntSet a
 
 -- | Compile AST into c-style statements (compatible with cuda)
-compile :: (C_Type o, TextShow o, Typeable o) => AST o -> (Text, [Text])
+compile :: HasAST o => AST o -> (Text, [Text])
 compile ast = 
     let 
         (a,s) = evalRWS (compile' ast) () S.empty
@@ -207,7 +215,7 @@ compile ast =
                 put $ S.insert i s
                 pure $ S.member i s
 
-        compile' :: (C_Type o, TextShow o, Typeable o) => AST o -> CompileMonad Text
+        compile' :: HasAST o => AST o -> CompileMonad Text
         compile' a@(Accessor i accessorName o) =
             do
                 b <- checkAndAdd i

@@ -6,18 +6,15 @@
 module Arca.Cuda.World.Internal.Operator
     ( opify
     , Op(..)
-    , OneArg
-    , TwoArg
-    , TwoArgInfix
-    , ThreeArg
-    , FourArg
+    , OneArg, TwoArg, TwoArgInfix, ThreeArg, FourArg
+    , VArg1, VArg2, VArg3, VArg4
     ) where
 
 import Data.Maybe (isNothing)
-import Data.Text (Text)
-import Data.Typeable
 
-import TextShow
+import Data.Proxy 
+
+import Data.Text (Text)
 
 import Arca.Cuda.World.Internal.AST
 
@@ -30,6 +27,11 @@ data TwoArg a b = TwoArg a b
 data TwoArgInfix a b = TwoArgInfix a b
 data ThreeArg a b c = ThreeArg a b c
 data FourArg a b c d = FourArg a b c d
+
+type VArg1 a = OneArg a
+type VArg2 a = TwoArg a a
+type VArg3 a = ThreeArg a a a
+type VArg4 a = FourArg a a a a
 
 {- Opify -}
 
@@ -46,35 +48,28 @@ opify (Op text) = PartialStackOp (OpName text) $
 class ToExpression a where
     toExpression :: UniqueId -> Text -> a -> AST o
 
-instance
-    ( C_Type o1, Show o1, TextShow o1, Typeable o1
+instance 
+    ( HasAST o1 
     ) => ToExpression (OneArg (AST o1)) where
     toExpression uniqueId t (OneArg a) = UnaryExpression uniqueId t a
 
-instance
-    ( C_Type o1, Show o1, TextShow o1, Typeable o1
-    , C_Type o2, Show o2, TextShow o2, Typeable o2
+instance 
+    ( HasAST o1, HasAST o2 
     ) => ToExpression (TwoArg (AST o1) (AST o2)) where
     toExpression uniqueId t (TwoArg a b) = BinaryExpression uniqueId t a b
 
 instance
-    ( C_Type o1, Show o1, TextShow o1, Typeable o1
-    , C_Type o2, Show o2, TextShow o2, Typeable o2
+    ( HasAST o1, HasAST o2
     ) => ToExpression (TwoArgInfix (AST o1) (AST o2)) where
     toExpression uniqueId t (TwoArgInfix a b) = BinaryExpressionInfix uniqueId t a b
 
 instance
-    ( C_Type o1, Show o1, TextShow o1, Typeable o1
-    , C_Type o2, Show o2, TextShow o2, Typeable o2
-    , C_Type o3, Show o3, TextShow o3, Typeable o3
+    ( HasAST o1, HasAST o2, HasAST o3
     ) => ToExpression (ThreeArg (AST o1) (AST o2) (AST o3)) where
     toExpression uniqueId t (ThreeArg a b c) = TrinaryExpression uniqueId t a b c
 
-instance
-    ( C_Type o1, Show o1, TextShow o1, Typeable o1
-    , C_Type o2, Show o2, TextShow o2, Typeable o2
-    , C_Type o3, Show o3, TextShow o3, Typeable o3
-    , C_Type o4, Show o4, TextShow o4, Typeable o4
+instance 
+    ( HasAST o1, HasAST o2, HasAST o3, HasAST o4
     ) => ToExpression (FourArg (AST o1) (AST o2) (AST o3) (AST o4)) where
     toExpression uniqueId t (FourArg a b c d) = QuadrinaryExpression uniqueId t a b c d
 
@@ -84,8 +79,8 @@ class OpIn w a where
     opin:: Proxy a -> State w (Maybe a)
 
 instance
-    HasStackLens w a 
-    => OpIn w (OneArg a) where
+    ( HasStackLens w a 
+    ) => OpIn w (OneArg a) where
     opin Proxy = 
         do
             w <- get

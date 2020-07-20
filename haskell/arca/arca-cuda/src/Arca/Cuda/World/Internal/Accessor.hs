@@ -1,23 +1,22 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Arca.Cuda.World.Internal.Accessor 
     ( accify
     , Acc(..)
-    , OneField(..)
-    , TwoField(..)
-    , ThreeField(..)
-    , FourField(..)
+    , OneField(..), TwoField(..), ThreeField(..), FourField(..)
+    , VField1, VField2, VField3, VField4
+    , vfield1, vfield2, vfield3, vfield4
     ) where
 
 import Data.Maybe (isNothing)
 
-import Data.Text (Text)
-import Data.Typeable
+import Data.Proxy
 
-import TextShow
+import Data.Text (Text)
 
 import Arca.Cuda.World.Internal.AST
 
@@ -29,6 +28,23 @@ data OneField a = OneField Text
 data TwoField a b = TwoField Text Text
 data ThreeField a b c = ThreeField Text Text Text
 data FourField a b c d = FourField Text Text Text Text
+
+type VField1 a = OneField a
+type VField2 a = TwoField a a
+type VField3 a = ThreeField a a a
+type VField4 a = FourField a a a a
+
+vfield1 :: VField1 a
+vfield1 = OneField "x"
+
+vfield2 :: VField2 a
+vfield2 = TwoField "x" "y"
+
+vfield3 :: VField3 a
+vfield3 = ThreeField "x" "y" "z"
+
+vfield4 :: VField4 a
+vfield4 = FourField "x" "y" "z" "w"
 
 {- Accify -}
 
@@ -46,9 +62,9 @@ class ToAccessor w a where
     toAccessor :: Text -> a -> State w (AST o)
 
 instance 
-    (C_Type o1, Show o1, TextShow o1, Typeable o1
+    ( HasAST o
     , HasIdentifier w
-    ) => ToAccessor w (AST o1) where
+    ) => ToAccessor w (AST o) where
     toAccessor t i = 
         do
             uniqueId <- ratchetId
