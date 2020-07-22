@@ -7,6 +7,7 @@ module Arca.Language (
     StackOp(..), textRead, Namespace(..), HasNamespaces(..), NamespaceOps(..)
     , LanguageTree(..), drawLanguageTree, module Arca.Language.Stack
     , PartialStackOp(..), parseLang, OpName(..), psoToSo, soToPso
+    , populateFromStacks
     )
 where
 

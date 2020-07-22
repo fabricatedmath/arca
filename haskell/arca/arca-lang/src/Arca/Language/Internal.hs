@@ -1,8 +1,14 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Arca.Language.Internal where
+
+import Data.Maybe (isNothing)
 
 import Data.Proxy (Proxy)
 
@@ -16,7 +22,7 @@ import GHC.Generics
 import TextShow
 import TextShow.Generic
 
-import Arca.Language.Stack (State)
+import Arca.Language.Stack
 
 type LiteralParser w = Text -> Either String (PartialStackOp w)
 data NamespaceOps w = NamespaceOps Namespace (Maybe (LiteralParser w)) [PartialStackOp w]
@@ -78,3 +84,25 @@ textRead reader t =
     if T.null t' 
       then return i
       else Left $ "Failed to consume all input on literal: " ++ show t
+
+populateFromStacks :: 
+  ( CurryState w f a
+  ) => f -> State w (Maybe a)
+populateFromStacks f =
+  do
+    w <- get
+    m <- curryState f
+    when (isNothing m) $ put w -- roll back state
+    pure m
+
+class CurryState w f a where
+  curryState :: f -> State w (Maybe a)
+
+instance CurryState w a a where
+  curryState f = pure $ pure f
+
+instance 
+  ( CurryState w b c, HasStackLens w a
+  ) => CurryState w (a -> b) c where
+  curryState f = popL stackLens >>= maybe (pure Nothing) (curryState . f)
+

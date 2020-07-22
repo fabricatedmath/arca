@@ -10,14 +10,10 @@ module Arca.Cuda.World.Internal.Operator
     , VArg1, VArg2, VArg3, VArg4
     ) where
 
-import Data.Maybe (isNothing)
-
 import Data.Proxy 
-
 import Data.Text (Text)
 
 import Arca.Cuda.World.Internal.AST
-
 import Arca.Language
 
 data Op i o = Op { opName :: Text }
@@ -81,54 +77,30 @@ class OpIn w a where
 instance
     ( HasStackLens w a 
     ) => OpIn w (OneArg a) where
-    opin Proxy = 
-        do
-            w <- get
-            ma <- popL stackLens
-            let m = OneArg <$> ma
-            when (isNothing m) $ put w
-            pure m
+    opin Proxy = populateFromStacks arg 
+        where arg = OneArg :: a -> OneArg a
 
 instance
     ( HasStackLens w a
     , HasStackLens w b
     ) => OpIn w (TwoArg a b) where
-    opin Proxy = 
-        do
-            w <- get
-            ma <- popL stackLens
-            mb <- popL stackLens
-            let m = TwoArg <$> ma <*> mb
-            when (isNothing m) $ put w
-            pure m
+    opin Proxy = populateFromStacks arg 
+        where arg = TwoArg :: a -> b -> TwoArg a b
 
 instance
     ( HasStackLens w a
     , HasStackLens w b
     ) => OpIn w (TwoArgInfix a b) where
-    opin Proxy = 
-        do
-            w <- get
-            ma <- popL stackLens
-            mb <- popL stackLens
-            let m = TwoArgInfix <$> ma <*> mb
-            when (isNothing m) $ put w
-            pure m
+    opin Proxy = populateFromStacks arg 
+        where arg = TwoArgInfix :: a -> b -> TwoArgInfix a b
 
 instance
     ( HasStackLens w a
     , HasStackLens w b
     , HasStackLens w c
     ) => OpIn w (ThreeArg a b c) where
-    opin Proxy = 
-        do
-            w <- get
-            ma <- popL stackLens
-            mb <- popL stackLens
-            mc <- popL stackLens
-            let m = ThreeArg <$> ma <*> mb <*> mc
-            when (isNothing m) $ put w
-            pure m
+    opin Proxy = populateFromStacks arg
+        where arg = ThreeArg :: a -> b -> c -> ThreeArg a b c
 
 instance
     ( HasStackLens w a
@@ -136,16 +108,8 @@ instance
     , HasStackLens w c
     , HasStackLens w d
     ) => OpIn w (FourArg a b c d) where
-    opin Proxy = 
-        do
-            w <- get
-            ma <- popL stackLens
-            mb <- popL stackLens
-            mc <- popL stackLens
-            md <- popL stackLens
-            let m = FourArg <$> ma <*> mb <*> mc <*> md
-            when (isNothing m) $ put w
-            pure m
+    opin Proxy = populateFromStacks arg
+        where arg = FourArg :: a -> b -> c -> d -> FourArg a b c d
 
 {- OpOut -}
 
@@ -160,3 +124,6 @@ instance forall w i o a.
         do
             uniqueId <- ratchetId
             pushL (stackLens :: StackLens w o) $ toExpression uniqueId t i
+
+
+

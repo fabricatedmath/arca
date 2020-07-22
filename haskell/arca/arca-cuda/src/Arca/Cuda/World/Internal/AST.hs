@@ -68,8 +68,7 @@ data AST o where
         , astOperand :: AST o1
         } -> AST o
     BinaryExpression ::
-        ( HasAST o1
-        , HasAST o2
+        ( HasAST o1, HasAST o2
         ) =>
         { astOpId :: UniqueId
         , astFuncName :: Text
@@ -77,8 +76,7 @@ data AST o where
         , astRightOp :: AST o2
         } -> AST o
     BinaryExpressionInfix ::
-        ( HasAST o1
-        , HasAST o2
+        ( HasAST o1, HasAST o2
         ) =>
         { astOpId :: UniqueId
         , astFuncName :: Text
@@ -86,9 +84,7 @@ data AST o where
         , astRightOp :: AST o2
         } -> AST o
     TrinaryExpression :: 
-        ( HasAST o1
-        , HasAST o2
-        , HasAST o3
+        ( HasAST o1, HasAST o2, HasAST o3
         ) => 
         { astOpId :: UniqueId
         , astFuncName :: Text
@@ -97,10 +93,7 @@ data AST o where
         , astOp3 :: AST o3
         } -> AST o
     QuadrinaryExpression :: 
-        ( HasAST o1
-        , HasAST o2
-        , HasAST o3
-        , HasAST o4
+        ( HasAST o1, HasAST o2, HasAST o3, HasAST o4
         ) => 
         { astOpId :: UniqueId
         , astFuncName :: Text
