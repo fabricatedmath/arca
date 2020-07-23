@@ -12,8 +12,6 @@ module Arca.Cuda.World.Internal.Accessor
     , vfield1, vfield2, vfield3, vfield4
     ) where
 
-import Data.Maybe (isNothing)
-
 import Data.Proxy
 
 import Data.Text (Text)
@@ -51,15 +49,13 @@ vfield4 = FourField "x" "y" "z" "w"
 accify :: forall w i o. (HasStackLens w i, OpOut w i o) => Acc i o -> PartialStackOp w
 accify (Acc text o) = PartialStackOp (OpName text) $ 
     do
-        mi <- opin (Proxy :: Proxy i)
-        case mi of
-            Nothing -> pure ()
-            Just i -> opout i o
+        i <- opin (Proxy :: Proxy i)
+        opout i o
 
 {- ToAccessor -}
 
 class ToAccessor w a where
-    toAccessor :: Text -> a -> State w (AST o)
+    toAccessor :: MonadState w m => Text -> a -> m (AST o)
 
 instance 
     ( HasAST o
@@ -72,19 +68,13 @@ instance
 
 {- OpIn -}
 
-opin :: HasStackLens w a => Proxy a -> State w (Maybe a)
-opin Proxy = 
-    do
-        w <- get
-        ma <- popL stackLens
-        let m = ma
-        when (isNothing m) $ put w
-        pure m
+opin :: HasStackLens w a => Proxy a -> StateT w Maybe a
+opin Proxy = popLT stackLens
 
 {- OpOut -}
 
 class OpOut w i o where
-    opout :: i -> o -> State w ()
+    opout :: MonadState w m => i -> o -> m ()
 
 instance forall w i a o1. 
     ( ToAccessor w i, HasIdentifier w 

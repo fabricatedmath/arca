@@ -13,7 +13,7 @@ import Arca.Language
 import Arca.Worlds.SimpleWorld
 
 testProgram :: Text
-testProgram = "((Integer.1 Integer.2 Integer.+) (Integer.4) Integer.*)"
+testProgram = "((Integer.1 Integer.+) (Integer.4) Integer.*)"
 
 testProgram2 :: Text
 testProgram2 = "(Integer.dogs (Integer.2 Integer.+) Integer.4 Integer.*)"

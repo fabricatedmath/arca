@@ -24,8 +24,6 @@ import Data.Typeable
 
 import TextShow
 
-import Arca.Language
-
 newtype UniqueId = UniqueId Int
     deriving (Num, Show, TextShow)
 
@@ -35,7 +33,7 @@ initUniqueId = UniqueId 0
 class HasIdentifier w where
     idLens :: Lens' w UniqueId
 
-ratchetId :: HasIdentifier w => State w UniqueId
+ratchetId :: MonadState w m => HasIdentifier w => m UniqueId
 ratchetId = idLens %%= (\i -> (i,i+1))
 
 ctype :: C_Type a => a -> Text

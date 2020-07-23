@@ -11,6 +11,7 @@ import Data.Text (Text)
 import TextShow
 
 import Arca.Language
+import Arca.Cuda.World.Internal
 import Arca.Cuda.World.Internal.AST
 import Arca.Cuda.World.Internal.Operator
 
@@ -20,6 +21,11 @@ literalOp a = PartialStackOp (OpName $ showt a) $
     do
         i <- ratchetId
         pushL (stackLens :: StackLens w (AST a)) $ Literal i a
+
+-- | Helper to build stack op that drops 'a' value into an 'AST a' literal
+variableOp :: forall a w. (HasIdentifier w, HasStackLens w (AST a)) => Proxy a -> Text -> PartialStackOp w
+variableOp _ varName = PartialStackOp (OpName $ showt varName) $ 
+    pushL (stackLens :: StackLens w (AST a)) $ Variable varName
 
 callOp :: forall a w. (TextShow a, HasIdentifier w, HasStackLens w (AST a)) => Proxy a -> OpName -> Text -> PartialStackOp w
 callOp _ callName call = PartialStackOp callName $ 
@@ -39,16 +45,19 @@ multiplyOp _ = opify (Op "*" :: Op (TwoArgInfix o o) o)
 divideOp :: forall a o w. (o ~ AST a, C_Type a, HasIdentifier w, HasStackLens w o) => Proxy a -> PartialStackOp w
 divideOp _ = opify (Op "/" :: Op (TwoArgInfix o o) o)
 
+bitAndOp :: forall a o w. (o ~ AST a, C_Type a, HasIdentifier w, HasStackLens w o) => Proxy a -> PartialStackOp w
+bitAndOp _ = opify (Op "&" :: Op (TwoArgInfix o o) o)
+
 dupOp :: forall a w. HasStackLens w a => Proxy a -> PartialStackOp w
 dupOp _ = PartialStackOp (OpName "dup") $  do
-    me <- popL (stackLens :: StackLens w a)
-    case me of
-        Nothing -> return ()
-        Just e -> pushListL stackLens [e,e]
+    a <- popLT (stackLens :: StackLens w a)
+    pushListL stackLens [a,a]
 
 dupOpAST :: forall a o w. (o ~ AST a, C_Type a, HasIdentifier w, HasStackLens w o) => Proxy a -> PartialStackOp w
 dupOpAST _ = PartialStackOp (OpName "dup") $  do
-    me <- popL (stackLens :: StackLens w o)
-    case me of
-        Nothing -> return ()
-        Just e -> pushListL stackLens [e,e]
+    o <- popLT (stackLens :: StackLens w o)
+    pushListL stackLens [o,o]
+
+-- | Return selected bytes from two 32 bit unsigned integers.
+__shfl_sync :: forall a o w. (o ~ AST a, C_Type a, HasIdentifier w, HasStackLens w U, HasStackLens w o, HasStackLens w I) => Proxy a -> PartialStackOp w
+__shfl_sync _ = opify (Op "__shfl_sync" :: Op (ThreeArg U o I) o)

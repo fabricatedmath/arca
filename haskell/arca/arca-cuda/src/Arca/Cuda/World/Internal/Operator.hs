@@ -34,10 +34,8 @@ type VArg4 a = FourArg a a a a
 opify :: forall w i o. (OpIn w i, OpOut w i o) => Op i o -> PartialStackOp w
 opify (Op text) = PartialStackOp (OpName text) $
     do
-        mi <- opin (Proxy :: Proxy i)
-        case mi of
-            Nothing -> pure ()
-            Just i -> opout (Proxy :: Proxy o) text i
+        i <- opin (Proxy :: Proxy i)
+        opout (Proxy :: Proxy o) text i
 
 {- ToExpression -}
 
@@ -72,26 +70,26 @@ instance
 {- OpIn -}
 
 class OpIn w a where
-    opin:: Proxy a -> State w (Maybe a)
+    opin:: Proxy a -> StateT w Maybe a
 
 instance
     ( HasStackLens w a 
     ) => OpIn w (OneArg a) where
-    opin Proxy = populateFromStacks arg 
+    opin Proxy = curryState arg 
         where arg = OneArg :: a -> OneArg a
 
 instance
     ( HasStackLens w a
     , HasStackLens w b
     ) => OpIn w (TwoArg a b) where
-    opin Proxy = populateFromStacks arg 
+    opin Proxy = curryState arg 
         where arg = TwoArg :: a -> b -> TwoArg a b
 
 instance
     ( HasStackLens w a
     , HasStackLens w b
     ) => OpIn w (TwoArgInfix a b) where
-    opin Proxy = populateFromStacks arg 
+    opin Proxy = curryState arg 
         where arg = TwoArgInfix :: a -> b -> TwoArgInfix a b
 
 instance
@@ -99,7 +97,7 @@ instance
     , HasStackLens w b
     , HasStackLens w c
     ) => OpIn w (ThreeArg a b c) where
-    opin Proxy = populateFromStacks arg
+    opin Proxy = curryState arg
         where arg = ThreeArg :: a -> b -> c -> ThreeArg a b c
 
 instance
@@ -108,13 +106,13 @@ instance
     , HasStackLens w c
     , HasStackLens w d
     ) => OpIn w (FourArg a b c d) where
-    opin Proxy = populateFromStacks arg
+    opin Proxy = curryState arg
         where arg = FourArg :: a -> b -> c -> d -> FourArg a b c d
 
 {- OpOut -}
 
 class OpOut w i o where
-    opout :: Proxy o -> Text -> i -> State w ()
+    opout :: MonadState w m => Proxy o -> Text -> i -> m ()
 
 instance forall w i o a. 
     ( ToExpression i, HasIdentifier w 

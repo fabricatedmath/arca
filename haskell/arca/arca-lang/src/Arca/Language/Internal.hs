@@ -4,11 +4,10 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 
 module Arca.Language.Internal where
-
-import Data.Maybe (isNothing)
 
 import Data.Proxy (Proxy)
 
@@ -30,11 +29,15 @@ data NamespaceOps w = NamespaceOps Namespace (Maybe (LiteralParser w)) [PartialS
 class HasNamespaces w where
   getNamespaces :: [NamespaceOps w]
 
-type StackFunc w = State w ()
-
 type ProxyPartialStackOp w a = Proxy a -> PartialStackOp w
 
-data PartialStackOp w = PartialStackOp OpName (StackFunc w)
+data PartialStackOp w = PartialStackOp OpName (StackFunc w) 
+
+instance Semigroup (PartialStackOp w) where
+  (<>) (PartialStackOp o1 sf1) (PartialStackOp o2 sf2) = PartialStackOp (o1 <> o2) (sf1 *> sf2)
+
+instance Monoid (PartialStackOp w) where
+  mempty = PartialStackOp mempty (pure ())
 
 newtype Namespace = Namespace { unNamespace :: Text }
   deriving (Eq, Generic, Ord, Show)
@@ -43,6 +46,12 @@ newtype Namespace = Namespace { unNamespace :: Text }
 newtype OpName = OpName { unOpName :: Text }
   deriving (Eq, Generic, Ord, Show)
   deriving TextShow via FromGeneric OpName
+
+instance Semigroup OpName where
+  (<>) (OpName n1) (OpName n2) = OpName $ n1 <> " - " <> n2
+
+instance Monoid OpName where
+  mempty = OpName mempty
 
 data StackOpText = StackOpText Namespace OpName
   deriving (Generic, Show)
@@ -54,6 +63,14 @@ data StackOp w =
   , stackOpName :: OpName
   , stackOpNamespace :: Namespace
   }
+
+-- | Collapses a StateT s Maybe () into a State s ()
+-- | Maybe forces a rolledback state if transaction fails
+transformStackFunc :: MonadState w m => StackFunc w -> m ()
+transformStackFunc mt = 
+  do
+    w <- get
+    maybe (put w) put $ execStateT mt w
 
 psoToSo :: Namespace -> PartialStackOp w -> StackOp w
 psoToSo namespace (PartialStackOp opName f) = 
@@ -85,24 +102,15 @@ textRead reader t =
       then return i
       else Left $ "Failed to consume all input on literal: " ++ show t
 
-populateFromStacks :: 
-  ( CurryState w f a
-  ) => f -> State w (Maybe a)
-populateFromStacks f =
-  do
-    w <- get
-    m <- curryState f
-    when (isNothing m) $ put w -- roll back state
-    pure m
-
+-- | Takes an f like :: a -> b -> (,) a b and pops the appropriate stacks to load this type up.
 class CurryState w f a where
-  curryState :: f -> State w (Maybe a)
+  curryState :: f -> StateT w Maybe a
 
 instance CurryState w a a where
-  curryState f = pure $ pure f
+  curryState a = pure a
 
 instance 
   ( CurryState w b c, HasStackLens w a
   ) => CurryState w (a -> b) c where
-  curryState f = popL stackLens >>= maybe (pure Nothing) (curryState . f)
+  curryState f = popLT stackLens >>= curryState . f
 

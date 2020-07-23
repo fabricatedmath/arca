@@ -7,7 +7,6 @@
 module Arca.Language.Ops where
 
 import Data.Proxy (Proxy)
-import Data.Text (Text)
 
 import Arca.Language.Stack
 import Arca.Language.Internal
@@ -23,24 +22,21 @@ convertOp opname f = PartialStackOp opname $ convertOp' (stackLens :: StackLens 
 convertOp' :: StackLens w a -> StackLens w b -> (a -> b) -> StackFunc w
 convertOp' la lb f = 
   do
-    w <- get
-    a <- popL la
-    maybe (put w) (pushL lb) $ f <$> a
+    a <- popLT la
+    pushL lb $ f a
 
 binaryOp :: StackLens w a -> (a -> a -> a) -> StackFunc w
 binaryOp l f =
   do
-    w <- get
-    a <- popL l
-    b <- popL l
-    maybe (put w) (pushL l) $ f <$> a <*> b
+    a <- popLT l
+    b <- popLT l
+    pushL l $ f a b
 
 unaryOp :: StackLens w a -> (a -> a) -> StackFunc w
 unaryOp l f =
   do
-    w <- get
-    a <- popL l
-    maybe (put w) (pushL l) $ f <$> a
+    a <- popLT l
+    pushL l $ f a 
 
 addOp :: forall w a. (HasStackLens w a, Num a) => ProxyPartialStackOp w a
 addOp _ = PartialStackOp (OpName "+") $ binaryOp (stackLens :: StackLens w a) (+)

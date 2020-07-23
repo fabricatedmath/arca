@@ -7,7 +7,7 @@ module Arca.Language (
     StackOp(..), textRead, Namespace(..), HasNamespaces(..), NamespaceOps(..)
     , LanguageTree(..), drawLanguageTree, module Arca.Language.Stack
     , PartialStackOp(..), parseLang, OpName(..), psoToSo, soToPso
-    , populateFromStacks
+    , curryState
     )
 where
 
@@ -43,7 +43,7 @@ runWorld limit
             Nothing -> pure ()
             Just (Exec e) -> do
                 case e of
-                    Expression a -> stackOpFunc a
+                    Expression a -> transformStackFunc $ stackOpFunc a
                     Open ts -> pushListL stackLens $ map Exec ts
                 runWorld (limit - 1)
 

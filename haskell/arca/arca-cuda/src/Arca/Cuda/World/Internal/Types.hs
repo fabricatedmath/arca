@@ -10,6 +10,16 @@ import TextShow
 
 import Arca.Cuda.World.Internal.AST
 
+newtype C_Unsigned = C_Unsigned Word32
+    deriving (Num, Show)
+
+instance TextShow C_Unsigned where
+    showb (C_Unsigned u) = showb u
+
+instance C_Type C_Unsigned where
+    ctypep _ = "unsigned"
+    cval (C_Unsigned a) = showt a
+
 newtype C_UnsignedInt = C_UnsignedInt Word32
     deriving (Num, Show)
 
@@ -84,6 +94,7 @@ type D = AST C_Double
 type F = AST C_Float
 
 type I = AST C_Int
+type U = AST C_Unsigned
 type UI = AST C_UnsignedInt
 type L = AST C_LongLongInt
 type UL = AST C_UnsignedLongLongInt

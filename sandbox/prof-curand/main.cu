@@ -281,7 +281,6 @@
  
  int main(int argc, char *argv[])
  {
-     
      const unsigned int threadsPerBlock = 1024;
      const unsigned int blockCount = 256;
      const unsigned int totalThreads = threadsPerBlock * blockCount;

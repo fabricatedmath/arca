@@ -52,6 +52,7 @@ data World =
     , _intStack :: Stack I
     , _floatStack :: Stack F
 
+    , _unsignedStack :: Stack U
     , _float2Stack :: Stack F2
     , _float4Stack :: Stack F4
     , _int2Stack :: Stack I2
@@ -70,6 +71,7 @@ instance HasEmpty World where
         , _intStack = empty
         , _floatStack = empty
 
+        , _unsignedStack = empty
         , _float2Stack = empty
         , _float4Stack = empty
         , _int2Stack = empty
@@ -86,6 +88,9 @@ instance HasStackLens World (Exec World) where
 
 instance HasStackLens World I where
     stackLens = intStack
+
+instance HasStackLens World U where
+    stackLens = unsignedStack
 
 instance HasStackLens World F where
     stackLens = floatStack
