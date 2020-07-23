@@ -23,10 +23,10 @@ main =
         print stackOp
 
         let proxy = Proxy :: Proxy C_Float
-            stackOp2 = psoToSo (Namespace "Test") $ warpShuffle proxy :: StackOp World
+            stackOp2 = psoToSo (Namespace "Test") $ shfl_sync_op proxy :: StackOp World
             --varOp = psoToSo (Namespace "Test") $ variableOp proxy "var" :: StackOp World
-            intOp = psoToSo (Namespace "Test") $ literalOp $ C_Int 2 :: StackOp World
-            floatOp = psoToSo (Namespace "Test") $ literalOp $ C_Float 3 :: StackOp World
+            intOp = psoToSo (Namespace "Int") $ literalOp $ C_Int 2 :: StackOp World
+            floatOp = psoToSo (Namespace "Float") $ literalOp $ C_Float 3 :: StackOp World
             tree2 = Exec $ Open $ map Expression [intOp, floatOp, stackOp2]
         T.putStrLn $ printWorld $ runProg 100 tree2
         --print tree

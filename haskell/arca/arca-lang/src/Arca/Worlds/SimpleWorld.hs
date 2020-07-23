@@ -11,7 +11,6 @@ module Arca.Worlds.SimpleWorld where
 
 import Control.Lens
 
-import Data.Proxy
 import qualified Data.Text.Read as T (decimal, signed, rational)
 
 import GHC.Generics
@@ -20,7 +19,7 @@ import TextShow
 import TextShow.Generic
 
 import Arca.Language
-import Arca.Language.Ops 
+import Arca.Ops 
 
 data World =
   World

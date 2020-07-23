@@ -10,7 +10,6 @@ module Arca.Cuda.World.Internal.Operator
     , VArg1, VArg2, VArg3, VArg4
     ) where
 
-import Data.Proxy 
 import Data.Text (Text)
 
 import Arca.Cuda.World.Internal.AST

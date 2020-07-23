@@ -47,7 +47,7 @@ class (Show a, TextShow a, Typeable a) => C_Type a where
 
 type HasAST o = (C_Type o, Show o, TextShow o, Typeable o)
 
--- | Consider making Text a type variable to support embedding of haskell land values
+-- | Consider making Text a type variable to support embedding of haskell land values (automatic differentiation)
 
 -- | Can get rid of UniqueId by checking equality of AST?
 

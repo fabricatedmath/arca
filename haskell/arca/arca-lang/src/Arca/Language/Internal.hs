@@ -9,8 +9,6 @@
 
 module Arca.Language.Internal where
 
-import Data.Proxy (Proxy)
-
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Read (Reader)
@@ -28,8 +26,6 @@ data NamespaceOps w = NamespaceOps Namespace (Maybe (LiteralParser w)) [PartialS
 
 class HasNamespaces w where
   getNamespaces :: [NamespaceOps w]
-
-type ProxyPartialStackOp w a = Proxy a -> PartialStackOp w
 
 data PartialStackOp w = PartialStackOp OpName (StackFunc w) 
 

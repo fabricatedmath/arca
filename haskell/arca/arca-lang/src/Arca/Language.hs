@@ -8,8 +8,11 @@ module Arca.Language (
     , LanguageTree(..), drawLanguageTree, module Arca.Language.Stack
     , PartialStackOp(..), parseLang, OpName(..), psoToSo, soToPso
     , curryState
+    , module Data.Proxy
     )
 where
+
+import Data.Proxy
 
 import Data.Text (Text)
 import qualified Data.Text.Lazy as T

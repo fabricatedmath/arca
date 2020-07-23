@@ -4,12 +4,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Arca.Language.Ops where
+module Arca.Ops where
 
-import Data.Proxy (Proxy)
-
-import Arca.Language.Stack
-import Arca.Language.Internal
+import Arca.Language
 
 import TextShow
 
@@ -38,26 +35,26 @@ unaryOp l f =
     a <- popLT l
     pushL l $ f a 
 
-addOp :: forall w a. (HasStackLens w a, Num a) => ProxyPartialStackOp w a
+addOp :: forall w a. (HasStackLens w a, Num a) => Proxy a -> PartialStackOp w
 addOp _ = PartialStackOp (OpName "+") $ binaryOp (stackLens :: StackLens w a) (+)
 
-subtractOp :: forall w a. (HasStackLens w a, Num a) => ProxyPartialStackOp w a
+subtractOp :: forall w a. (HasStackLens w a, Num a) => Proxy a -> PartialStackOp w
 subtractOp _ = PartialStackOp (OpName "-") $ binaryOp (stackLens :: StackLens w a) (-)
 
-multiplyOp :: forall w a. (HasStackLens w a, Num a) => ProxyPartialStackOp w a
+multiplyOp :: forall w a. (HasStackLens w a, Num a) => Proxy a -> PartialStackOp w
 multiplyOp _ = PartialStackOp (OpName "*") $ binaryOp (stackLens :: StackLens w a) (*)
 
-divOp :: forall w a. (HasStackLens w a, Integral a) => ProxyPartialStackOp w a
+divOp :: forall w a. (HasStackLens w a, Integral a) => Proxy a -> PartialStackOp w
 divOp _ = PartialStackOp (OpName "div") $ binaryOp (stackLens :: StackLens w a) div
 
-remOp :: forall w a. (HasStackLens w a, Integral a) => ProxyPartialStackOp w a
+remOp :: forall w a. (HasStackLens w a, Integral a) => Proxy a -> PartialStackOp w
 remOp _ = PartialStackOp (OpName "rem") $ binaryOp (stackLens :: StackLens w a) rem
 
-divideOp :: forall w a. (HasStackLens w a, Fractional a) => ProxyPartialStackOp w a
+divideOp :: forall w a. (HasStackLens w a, Fractional a) => Proxy a -> PartialStackOp w
 divideOp _ = PartialStackOp (OpName "/") $ binaryOp (stackLens :: StackLens w a) (/)
 
-roundOp :: forall w a b. (RealFrac a, Integral b, HasStackLens w a, HasStackLens w b) => ProxyPartialStackOp w (a,b)
+roundOp :: forall w a b. (RealFrac a, Integral b, HasStackLens w a, HasStackLens w b) => Proxy (a,b) -> PartialStackOp w
 roundOp _ = PartialStackOp (OpName "round") $ convertOp' (stackLens :: StackLens w a) (stackLens :: StackLens w b) round
 
-fromIntegralOp :: forall w a b. (Integral a, Num b, HasStackLens w a, HasStackLens w b) => ProxyPartialStackOp w (a,b)
+fromIntegralOp :: forall w a b. (Integral a, Num b, HasStackLens w a, HasStackLens w b) => Proxy (a,b) -> PartialStackOp w
 fromIntegralOp _ = PartialStackOp (OpName "fromIntegral") $ convertOp' (stackLens :: StackLens w a) (stackLens :: StackLens w b) fromIntegral

@@ -5,15 +5,11 @@
 
 module Arca.Cuda.World.Ops where
 
-import Data.Proxy
-
 import Data.Text (Text)
 import TextShow
 
 import Arca.Language
 import Arca.Cuda.World.Internal
-import Arca.Cuda.World.Internal.AST
-import Arca.Cuda.World.Internal.Operator
 
 -- | Helper to build stack op that drops 'a' value into an 'AST a' literal
 literalOp :: forall a w. (TextShow a, HasIdentifier w, HasStackLens w (AST a)) => a -> PartialStackOp w
@@ -57,7 +53,3 @@ dupOpAST :: forall a o w. (o ~ AST a, C_Type a, HasIdentifier w, HasStackLens w 
 dupOpAST _ = PartialStackOp (OpName "dup") $  do
     o <- popLT (stackLens :: StackLens w o)
     pushListL stackLens [o,o]
-
--- | Return selected bytes from two 32 bit unsigned integers.
-__shfl_sync :: forall a o w. (o ~ AST a, C_Type a, HasIdentifier w, HasStackLens w U, HasStackLens w o, HasStackLens w I) => Proxy a -> PartialStackOp w
-__shfl_sync _ = opify (Op "__shfl_sync" :: Op (ThreeArg U o I) o)

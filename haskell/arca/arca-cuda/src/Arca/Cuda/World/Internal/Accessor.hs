@@ -12,8 +12,6 @@ module Arca.Cuda.World.Internal.Accessor
     , vfield1, vfield2, vfield3, vfield4
     ) where
 
-import Data.Proxy
-
 import Data.Text (Text)
 
 import Arca.Cuda.World.Internal.AST
