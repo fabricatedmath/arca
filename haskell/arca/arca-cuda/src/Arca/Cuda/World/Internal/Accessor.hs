@@ -52,17 +52,13 @@ accify (Acc text o) = PartialStackOp (OpName text) $
 
 {- ToAccessor -}
 
-class ToAccessor w a where
-    toAccessor :: MonadState w m => Text -> a -> m (AST o)
+class ToAccessor a where
+    toAccessor :: Text -> a -> AST o
 
 instance 
     ( HasAST o
-    , HasIdentifier w
-    ) => ToAccessor w (AST o) where
-    toAccessor t i = 
-        do
-            uniqueId <- ratchetId
-            pure $ Accessor uniqueId t i
+    ) => ToAccessor (AST o) where
+    toAccessor t i = Accessor t i            
 
 {- OpIn -}
 
@@ -75,37 +71,37 @@ class OpOut w i o where
     opout :: MonadState w m => i -> o -> m ()
 
 instance forall w i a o1. 
-    ( ToAccessor w i, HasIdentifier w 
+    ( ToAccessor i
     , a ~ AST o1, HasStackLens w a
     ) => OpOut w i (OneField a) where
     opout i (OneField t1) = 
         do
-            toAccessor t1 i >>= pushL (stackLens :: StackLens w a)
+            pushL (stackLens :: StackLens w a) $ toAccessor t1 i
 
 instance forall w i a o1 b o2. 
-    ( ToAccessor w i, HasIdentifier w 
+    ( ToAccessor i
     , a ~ AST o1, HasStackLens w a
     , b ~ AST o2, HasStackLens w b
     ) => OpOut w i (TwoField a b) where
     opout i (TwoField t1 t2) = 
         do
-            toAccessor t1 i >>= pushL (stackLens :: StackLens w a)
-            toAccessor t2 i >>= pushL (stackLens :: StackLens w b)
+            pushL (stackLens :: StackLens w a) $ toAccessor t1 i
+            pushL (stackLens :: StackLens w b) $ toAccessor t2 i
 
 instance forall w i a o1 b o2 c o3. 
-    ( ToAccessor w i, HasIdentifier w 
+    ( ToAccessor i
     , a ~ AST o1, HasStackLens w a
     , b ~ AST o2, HasStackLens w b
     , c ~ AST o3, HasStackLens w c
     ) => OpOut w i (ThreeField a b c) where
     opout i (ThreeField t1 t2 t3) = 
         do
-            toAccessor t1 i >>= pushL (stackLens :: StackLens w a)
-            toAccessor t2 i >>= pushL (stackLens :: StackLens w b)
-            toAccessor t3 i >>= pushL (stackLens :: StackLens w c)
+            pushL (stackLens :: StackLens w a) $ toAccessor t1 i
+            pushL (stackLens :: StackLens w b) $ toAccessor t2 i
+            pushL (stackLens :: StackLens w c) $ toAccessor t3 i
 
 instance forall w i a o1 b o2 c o3 d o4.
-    ( ToAccessor w i, HasIdentifier w 
+    ( ToAccessor i
     , a ~ AST o1, HasStackLens w a
     , b ~ AST o2, HasStackLens w b
     , c ~ AST o3, HasStackLens w c
@@ -113,7 +109,7 @@ instance forall w i a o1 b o2 c o3 d o4.
     ) => OpOut w i (FourField a b c d) where
     opout i (FourField t1 t2 t3 t4) = 
         do
-            toAccessor t1 i >>= pushL (stackLens :: StackLens w a)
-            toAccessor t2 i >>= pushL (stackLens :: StackLens w b)
-            toAccessor t3 i >>= pushL (stackLens :: StackLens w c)
-            toAccessor t4 i >>= pushL (stackLens :: StackLens w d)
+            pushL (stackLens :: StackLens w a) $ toAccessor t1 i
+            pushL (stackLens :: StackLens w b) $ toAccessor t2 i
+            pushL (stackLens :: StackLens w c) $ toAccessor t3 i
+            pushL (stackLens :: StackLens w d) $ toAccessor t4 i

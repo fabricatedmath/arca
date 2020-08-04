@@ -39,32 +39,32 @@ opify (Op text) = PartialStackOp (OpName text) $
 {- ToExpression -}
 
 class ToExpression a where
-    toExpression :: UniqueId -> Text -> a -> AST o
+    toExpression :: Text -> a -> AST o
 
 instance 
     ( HasAST o1 
     ) => ToExpression (OneArg (AST o1)) where
-    toExpression uniqueId t (OneArg a) = UnaryExpression uniqueId t a
+    toExpression t (OneArg a) = UnaryExpression t a
 
 instance 
     ( HasAST o1, HasAST o2 
     ) => ToExpression (TwoArg (AST o1) (AST o2)) where
-    toExpression uniqueId t (TwoArg a b) = BinaryExpression uniqueId t a b
+    toExpression t (TwoArg a b) = BinaryExpression t a b
 
 instance
     ( HasAST o1, HasAST o2
     ) => ToExpression (TwoArgInfix (AST o1) (AST o2)) where
-    toExpression uniqueId t (TwoArgInfix a b) = BinaryExpressionInfix uniqueId t a b
+    toExpression t (TwoArgInfix a b) = BinaryExpressionInfix t a b
 
 instance
     ( HasAST o1, HasAST o2, HasAST o3
     ) => ToExpression (ThreeArg (AST o1) (AST o2) (AST o3)) where
-    toExpression uniqueId t (ThreeArg a b c) = TernaryExpression uniqueId t a b c
+    toExpression t (ThreeArg a b c) = TernaryExpression t a b c
 
 instance 
     ( HasAST o1, HasAST o2, HasAST o3, HasAST o4
     ) => ToExpression (FourArg (AST o1) (AST o2) (AST o3) (AST o4)) where
-    toExpression uniqueId t (FourArg a b c d) = QuaternaryExpression uniqueId t a b c d
+    toExpression t (FourArg a b c d) = QuaternaryExpression t a b c d
 
 {- OpIn -}
 
@@ -114,13 +114,11 @@ class OpOut w i o where
     opout :: MonadState w m => Proxy o -> Text -> i -> m ()
 
 instance forall w i o a. 
-    ( ToExpression i, HasIdentifier w 
+    ( ToExpression i
     , o ~ AST a, HasStackLens w o
     ) => OpOut w i o where
     opout Proxy t i = 
-        do
-            uniqueId <- ratchetId
-            pushL (stackLens :: StackLens w o) $ toExpression uniqueId t i
+        pushL (stackLens :: StackLens w o) $ toExpression t i
 
 
 

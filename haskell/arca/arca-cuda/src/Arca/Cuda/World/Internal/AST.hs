@@ -15,9 +15,11 @@ import Control.Lens
 import Control.Monad.RWS.Strict
 
 import Data.Hashable
+import Data.HashMap (Map)
+import qualified Data.HashMap as H
+
 import Data.List (intersperse, intercalate)
-import Data.IntSet (IntSet)
-import qualified Data.IntSet as S
+
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy.Builder as T
@@ -26,7 +28,7 @@ import Data.Typeable
 import TextShow
 
 newtype UniqueId = UniqueId Int
-    deriving (Num, Show, TextShow)
+    deriving (Eq, Hashable, Num, Ord, Show, TextShow)
 
 initUniqueId :: UniqueId
 initUniqueId = UniqueId 0
@@ -55,38 +57,34 @@ type HasAST o = (C_Type o, Eq o, Hashable o, Ord o, Show o, TextShow o, Typeable
 -- | Boundable ast for while loop? Takes an AST as an argument, maybe?
 
 data AST o where
-    Accessor :: HasAST o1 => UniqueId -> Text -> AST o1 -> AST o
+    Accessor :: HasAST o1 => Text -> AST o1 -> AST o
     Call :: UniqueId -> Text -> AST o
-    Literal :: UniqueId -> o -> AST o
+    Literal :: o -> AST o
     Variable :: Text -> AST o
     UnaryExpression :: 
         ( HasAST o1
         ) => 
-        { astOpId :: UniqueId
-        , astFuncName :: Text
+        { astFuncName :: Text
         , astOperand :: AST o1
         } -> AST o
     BinaryExpression ::
         ( HasAST o1, HasAST o2
         ) =>
-        { astOpId :: UniqueId
-        , astFuncName :: Text
+        { astFuncName :: Text
         , astLeftOp :: AST o1
         , astRightOp :: AST o2
         } -> AST o
     BinaryExpressionInfix ::
         ( HasAST o1, HasAST o2
         ) =>
-        { astOpId :: UniqueId
-        , astFuncName :: Text
+        { astFuncName :: Text
         , astLeftOp :: AST o1
         , astRightOp :: AST o2
         } -> AST o
     TernaryExpression :: 
         ( HasAST o1, HasAST o2, HasAST o3
         ) => 
-        { astOpId :: UniqueId
-        , astFuncName :: Text
+        { astFuncName :: Text
         , astOp1 :: AST o1
         , astOp2 :: AST o2
         , astOp3 :: AST o3
@@ -94,8 +92,7 @@ data AST o where
     QuaternaryExpression :: 
         ( HasAST o1, HasAST o2, HasAST o3, HasAST o4
         ) => 
-        { astOpId :: UniqueId
-        , astFuncName :: Text
+        { astFuncName :: Text
         , astOp1 :: AST o1
         , astOp2 :: AST o2
         , astOp3 :: AST o3
@@ -103,23 +100,23 @@ data AST o where
         } -> AST o
 
 instance HasAST o => Eq (AST o) where
-    (==) (Accessor xid xt x1) (Accessor yid yt y1) = 
+    (==) (Accessor xt x1) (Accessor yt y1) = 
         xt == yt && eqTV x1 y1
     (==) (Call xid xt) (Call yid yt) = 
-        xt == yt
-    (==) (Literal xid x1) (Literal yid y1) = 
+        xid == yid && xt == yt
+    (==) (Literal x1) (Literal y1) = 
         eqTV x1 y1
     (==) (Variable xt) (Variable yt) = 
         xt == yt
-    (==) (UnaryExpression xid xt x1) (UnaryExpression yid yt y1) = 
+    (==) (UnaryExpression xt x1) (UnaryExpression yt y1) = 
         xt == yt && eqTV x1 y1
-    (==) (BinaryExpression xid xt x1 x2) (BinaryExpression yid yt y1 y2) = 
+    (==) (BinaryExpression xt x1 x2) (BinaryExpression yt y1 y2) = 
         xt == yt && eqTV x1 y1 && eqTV x2 y2
-    (==) (BinaryExpressionInfix xid xt x1 x2) (BinaryExpressionInfix yid yt y1 y2) = 
+    (==) (BinaryExpressionInfix xt x1 x2) (BinaryExpressionInfix yt y1 y2) = 
         xt == yt && eqTV x1 y1 && eqTV x2 y2
-    (==) (TernaryExpression xid xt x1 x2 x3) (TernaryExpression yid yt y1 y2 y3) = 
+    (==) (TernaryExpression xt x1 x2 x3) (TernaryExpression yt y1 y2 y3) = 
         xt == yt && eqTV x1 y1 && eqTV x2 y2 && eqTV x3 y3
-    (==) (QuaternaryExpression xid xt x1 x2 x3 x4) (QuaternaryExpression yid yt y1 y2 y3 y4) = 
+    (==) (QuaternaryExpression xt x1 x2 x3 x4) (QuaternaryExpression yt y1 y2 y3 y4) = 
         xt == yt && eqTV x1 y1 && eqTV x2 y2 && eqTV x3 y3 && eqTV x4 y4
     (==) _ _ = False
         
@@ -127,23 +124,23 @@ eqTV :: (Eq a, Eq b, Typeable a, Typeable b) => a -> b -> Bool
 eqTV a b = maybe False (== a) $ cast b
 
 instance HasAST o => Ord (AST o) where
-    compare (Accessor xid xt x1) (Accessor yid yt y1) = 
+    compare (Accessor xt x1) (Accessor yt y1) = 
         compare xt yt <> compareTV x1 y1
     compare (Call xid xt) (Call yid yt) = 
-        compare xt yt
-    compare (Literal xid x1) (Literal yid y1) = 
+        compare xid yid <> compare xt yt
+    compare (Literal x1) (Literal y1) = 
         compareTV x1 y1
     compare (Variable xt) (Variable yt) = 
         compare xt yt
-    compare (UnaryExpression xid xt x1) (UnaryExpression yid yt y1) = 
+    compare (UnaryExpression xt x1) (UnaryExpression yt y1) = 
         compare xt yt <> compareTV x1 y1
-    compare (BinaryExpression xid xt x1 x2) (BinaryExpression yid yt y1 y2) = 
+    compare (BinaryExpression xt x1 x2) (BinaryExpression yt y1 y2) = 
         compare xt yt <> compareTV x1 y1 <> compareTV x2 y2
-    compare (BinaryExpressionInfix xid xt x1 x2) (BinaryExpressionInfix yid yt y1 y2) = 
+    compare (BinaryExpressionInfix xt x1 x2) (BinaryExpressionInfix yt y1 y2) = 
         compare xt yt <> compareTV x1 y1 <> compareTV x2 y2
-    compare (TernaryExpression xid xt x1 x2 x3) (TernaryExpression yid yt y1 y2 y3) = 
+    compare (TernaryExpression xt x1 x2 x3) (TernaryExpression yt y1 y2 y3) = 
         compare xt yt <> compareTV x1 y1 <> compareTV x2 y2 <> compareTV x3 y3
-    compare (QuaternaryExpression xid xt x1 x2 x3 x4) (QuaternaryExpression yid yt y1 y2 y3 y4) = 
+    compare (QuaternaryExpression xt x1 x2 x3 x4) (QuaternaryExpression yt y1 y2 y3 y4) = 
         compare xt yt <> compareTV x1 y1 <> compareTV x2 y2 <> compareTV x3 y3 <> compareTV x4 y4
     compare Accessor{} _ = LT
     compare _ Accessor{} = GT
@@ -168,70 +165,70 @@ compareTV :: (Ord a, Ord b, Typeable a, Typeable b) => a -> b -> Ordering
 compareTV a b = maybe (compare (typeOf a) (typeOf b)) (compare a) $ cast b
 
 instance Hashable o => Hashable (AST o) where
-    hashWithSalt s (Accessor id t o) = 
+    hashWithSalt s (Accessor t o) = 
         s `hashWithSalt` (0 :: Int) `hashWithSalt` t `hashWithSalt` o
-    hashWithSalt s (Call id t) = 
-        s `hashWithSalt` (1 :: Int) `hashWithSalt` t
-    hashWithSalt s (Literal id o) = 
+    hashWithSalt s (Call i t) = 
+        s `hashWithSalt` (1 :: Int) `hashWithSalt` i `hashWithSalt` t
+    hashWithSalt s (Literal o) = 
         s `hashWithSalt` (2 :: Int) `hashWithSalt` o
     hashWithSalt s (Variable t) = 
         s `hashWithSalt` (3 :: Int) `hashWithSalt` t
-    hashWithSalt s (UnaryExpression id t o1) = 
+    hashWithSalt s (UnaryExpression t o1) = 
         s `hashWithSalt` (4 :: Int) `hashWithSalt` t `hashWithSalt` o1
-    hashWithSalt s (BinaryExpression id t o1 o2) = 
+    hashWithSalt s (BinaryExpression t o1 o2) = 
         s `hashWithSalt` (5 :: Int) `hashWithSalt` t `hashWithSalt` o1 `hashWithSalt` o2
-    hashWithSalt s (BinaryExpressionInfix id t o1 o2) = 
+    hashWithSalt s (BinaryExpressionInfix t o1 o2) = 
         s `hashWithSalt` (6 :: Int) `hashWithSalt` t `hashWithSalt` o1 `hashWithSalt` o2
-    hashWithSalt s (TernaryExpression id t o1 o2 o3) = 
+    hashWithSalt s (TernaryExpression t o1 o2 o3) = 
         s `hashWithSalt` (7 :: Int) `hashWithSalt` t `hashWithSalt` o1 `hashWithSalt` o2 `hashWithSalt` o3
-    hashWithSalt s (QuaternaryExpression id t o1 o2 o3 o4) = 
+    hashWithSalt s (QuaternaryExpression t o1 o2 o3 o4) = 
         s `hashWithSalt` (8 :: Int) `hashWithSalt` t `hashWithSalt` o1 `hashWithSalt` o2 `hashWithSalt` o3 `hashWithSalt` o4
 
 instance HasAST o => Show (AST o) where
-    show a@(Accessor _ident accessorName o1) = 
+    show a@(Accessor accessorName o1) = 
         "Accessor(" <> show o1 <> "." <> T.unpack accessorName <> " :: " <> show (typeRep a) <> ")"
     show c@(Call _ident call) = 
         "Call(" <> show call <> " :: " <> show (typeRep c) <> ")"
-    show (Literal _ident o) = 
+    show (Literal o) = 
         "Literal(" <> show o <> " :: " <> show (typeOf o) <> ")"
     show v@(Variable s) = 
        "Variable(" <> T.unpack s <> " :: " <> show (typeRep v) <> ")"
-    show e@(UnaryExpression _ident name o1) = 
+    show e@(UnaryExpression name o1) = 
         T.unpack name <> "( " <> args <> " )" <> " :: " <> show (typeRep e)
             where args = intercalate ", " [show o1]
-    show e@(BinaryExpression _ident name o1 o2) = 
+    show e@(BinaryExpression name o1 o2) = 
         T.unpack name <> "( " <> args <> " )" <> " :: " <> show (typeRep e)
             where args = intercalate ", " $ [show o1, show o2]
-    show e@(BinaryExpressionInfix _ident name o1 o2) = 
+    show e@(BinaryExpressionInfix name o1 o2) = 
         "( " <> show o1 <> " " <> T.unpack name <> " " <> show o2 <> " )" <> " :: " <> show (typeRep e)
-    show e@(TernaryExpression _ident name o1 o2 o3) = 
+    show e@(TernaryExpression name o1 o2 o3) = 
         T.unpack name <> "( " <> args <> " )" <> " :: " <> show (typeRep e)
             where args = intercalate ", " [show o1, show o2, show o3]
-    show e@(QuaternaryExpression _ident name o1 o2 o3 o4) = 
+    show e@(QuaternaryExpression name o1 o2 o3 o4) = 
         T.unpack name <> "( " <> args <> " )" <> " :: " <> show (typeRep e)
             where args = intercalate ", " [show o1, show o2, show o3, show o4]
 
 instance HasAST o => TextShow (AST o) where
-    showb a@(Accessor _ident accessorName o1) =
+    showb a@(Accessor accessorName o1) =
         "Accessor(" <> showb o1 <> "." <> T.fromText accessorName <> " :: " <> showb (typeRep a) <> ")"
     showb c@(Call _ident call) = 
         "Call(" <> T.fromText call <> " :: " <> showb (typeRep c) <> ")"
-    showb (Literal _ident o) = 
+    showb (Literal o) = 
         "Literal(" <> showb o <> " :: " <> showb (typeOf o) <> ")"
     showb v@(Variable s) = 
        "Variable(" <> T.fromText s <> " :: " <> showb (typeRep v) <> ")"
-    showb e@(UnaryExpression _ident name o1) = 
+    showb e@(UnaryExpression name o1) = 
         T.fromText name <> "( " <> args <> " )" <> " :: " <> showb (typeRep e)
             where args = mconcat $ intersperse ", " [showb o1]
-    showb e@(BinaryExpression _ident name o1 o2) = 
+    showb e@(BinaryExpression name o1 o2) = 
         T.fromText name <> "( " <> args <> " )" <> " :: " <> showb (typeRep e)
             where args = mconcat $ intersperse ", " $ [showb o1, showb o2]
-    showb e@(BinaryExpressionInfix _ident name o1 o2) = 
+    showb e@(BinaryExpressionInfix name o1 o2) = 
         "( " <> showb o1 <> " " <> T.fromText name <> " " <> showb o2 <> " )" <> " :: " <> showb (typeRep e)
-    showb e@(TernaryExpression _ident name o1 o2 o3) = 
+    showb e@(TernaryExpression name o1 o2 o3) = 
         T.fromText name <> "( " <> args <> " )" <> " :: " <> showb (typeRep e)
             where args = mconcat $ intersperse ", " [showb o1, showb o2, showb o3]
-    showb e@(QuaternaryExpression _ident name o1 o2 o3 o4) = 
+    showb e@(QuaternaryExpression name o1 o2 o3 o4) = 
         T.fromText name <> "( " <> args <> " )" <> " :: " <> showb (typeRep e)
             where args = mconcat $ intersperse ", " [showb o1, showb o2, showb o3, showb o4]
 
@@ -248,80 +245,105 @@ drawASTString = unlines . draw
         shift first other = zipWith (++) (first : repeat other)
 
         draw :: HasAST o => AST o -> [String]
-        draw a@(Accessor n accessorName o1) = 
-            lines $ "Accessor" <> " - " <> show n <> " - " <> show (typeRep o1) <> "." <> show accessorName <> ") :: " <> show (typeOf a)
+        draw a@(Accessor accessorName o1) = 
+            lines $ "Accessor" <> " - " <> show (typeRep o1) <> "." <> show accessorName <> ") :: " <> show (typeOf a)
         draw c@(Call n call) = 
             lines $ "Call" <> " - " <> show n <> " - " <> "(" <> show call <> ") :: " <> show (typeOf c)
-        draw (Literal n o) = 
-            lines $ "Literal" <> " - " <> show n <> " - " <> "(" <> show o <> ") :: " <> show (typeOf o)
+        draw (Literal o) = 
+            lines $ "Literal" <> " - " <> "(" <> show o <> ") :: " <> show (typeOf o)
         draw v@(Variable s) = 
             lines $ "Variable(" <> show s <> ") :: " <> show (typeOf v)
-        draw e@(UnaryExpression n name o1) = 
-            lines ("UnaryExpression" <> " - " <> show n <> " - " <> show name <> " :: " <> args) <> drawSubTrees [o1]
+        draw e@(UnaryExpression name o1) = 
+            lines ("UnaryExpression" <> " - " <> show name <> " :: " <> args) <> drawSubTrees [o1]
                 where args = intercalate " -> " $ map show [typeRep o1, typeRep e]
-        draw e@(BinaryExpression n name o1 o2) = 
-            lines ("BinaryExpression" <> " - " <> show n <> " - " <> show name <> " :: " <> args) <> drawSubTrees [o1] <> drawSubTrees [o2]
+        draw e@(BinaryExpression name o1 o2) = 
+            lines ("BinaryExpression" <> " - " <> show name <> " :: " <> args) <> drawSubTrees [o1] <> drawSubTrees [o2]
                 where args = intercalate " -> " $ map show [typeRep o1, typeRep o2, typeRep e]
-        draw e@(BinaryExpressionInfix n name o1 o2) = 
-            lines ("BinaryExpressionInfix" <> " - " <> show n <> " - " <> show name <> " :: " <> args) <> drawSubTrees [o1] <> drawSubTrees [o2]
+        draw e@(BinaryExpressionInfix name o1 o2) = 
+            lines ("BinaryExpressionInfix" <> " - " <> show name <> " :: " <> args) <> drawSubTrees [o1] <> drawSubTrees [o2]
                 where args = intercalate " -> " $ map show [typeRep o1, typeRep o2, typeRep e]
-        draw e@(TernaryExpression n name o1 o2 o3) = 
-            lines ("TernaryExpression" <> " - " <> show n <> " - " <> show name <> " :: " <> args) <> drawSubTrees [o1] <> drawSubTrees [o2] <> drawSubTrees [o3]
+        draw e@(TernaryExpression name o1 o2 o3) = 
+            lines ("TernaryExpression" <> " - " <> show name <> " :: " <> args) <> drawSubTrees [o1] <> drawSubTrees [o2] <> drawSubTrees [o3]
                 where args = intercalate " -> " $ map show [typeRep o1, typeRep o2, typeRep o3, typeRep e]
-        draw e@(QuaternaryExpression n name o1 o2 o3 o4) = 
-            lines ("QuaternaryExpression" <> " - " <> show n <> " - " <> show name <> " :: " <> args) <> drawSubTrees [o1] <> drawSubTrees [o2] <> drawSubTrees [o3] <> drawSubTrees [o4]
+        draw e@(QuaternaryExpression name o1 o2 o3 o4) = 
+            lines ("QuaternaryExpression" <> " - " <> show name <> " :: " <> args) <> drawSubTrees [o1] <> drawSubTrees [o2] <> drawSubTrees [o3] <> drawSubTrees [o4]
                 where args = intercalate " -> " $ map show [typeRep o1, typeRep o2, typeRep o3, typeRep o4, typeRep e]
 
-type CompileMonad a = RWS () [Text] IntSet a
+data Some t = 
+    forall a. 
+    ( Eq (t a), Hashable (t a), Ord (t a), Typeable (t a)
+    ) => Some (t a)
+
+instance Hashable (Some t) where
+    hashWithSalt s (Some t) = hashWithSalt s t
+
+instance Eq (Some t) where
+    (==) (Some x) (Some y) = eqTV x y
+
+instance Ord (Some t) where
+    compare (Some x) (Some y) = compareTV x y
+
+type ASTMap = Map (Some AST) Int
+type ASTState = (Int, ASTMap)
+
+type CompileMonad a = RWS () [Text] ASTState a
+
+type NeedsToCompile = Bool
+type VarName = Text
 
 -- | Compile AST into c-style statements (compatible with cuda)
 compile :: HasAST o => AST o -> (Text, [Text])
 compile ast = 
     let 
-        (a,s) = evalRWS (compile' ast) () S.empty
+        (a,s) = evalRWS (compile' ast) () emptyASTState
         codeLines = map (`T.append` ";") $ s
     in (a, codeLines)
     where 
-        gvn :: UniqueId -> Text
-        gvn (UniqueId n) = "a" <> showt n
-
-        checkAndAdd :: MonadState IntSet m => UniqueId -> m Bool
-        checkAndAdd (UniqueId i) =
+        -- | Looks to see if ast is already checked into map, returns variable name of this 
+        -- chunk of code
+        checkAndSet :: (C_Type o, MonadState ASTState m) => AST o -> m (NeedsToCompile, VarName)
+        checkAndSet ast = 
             do
-                s <- get
-                put $ S.insert i s
-                pure $ S.member i s
+                let gvn :: Int -> Text
+                    gvn n = "a" <> showt n
+                (i,m) <- get
+                let (mv', m') = H.insertLookupWithKey (\_k _a1 a2 -> a2) (Some ast) i m
+                put (i+1, m')
+                case mv' of
+                    Nothing -> pure (True, gvn i)
+                    Just v' -> pure (False, gvn v')
+
+        emptyASTState :: ASTState
+        emptyASTState = (0, H.empty)
 
         compile' :: HasAST o => AST o -> CompileMonad Text
-        compile' a@(Accessor i accessorName o) =
+        compile' a@(Accessor accessorName o) =
             do
-                b <- checkAndAdd i
-                let var = gvn i
-                unless b $ 
+                (needsToCompile, var) <- checkAndSet a
+                when needsToCompile $ 
                     do
                         ovar <- compile' o
                         let lhs = ctypep a <> " " <> var <> " = "
                             rhs = ovar <> "." <> accessorName
                         tell $ pure $ lhs <> rhs
                 pure var
-        compile' c@(Call i call) = 
+        compile' c@(Call _i call) = 
             do
-                b <- checkAndAdd i
-                let var = gvn i
-                unless b $ tell $ pure $ ctypep c <> " " <> var <> " = " <> call
+                (needsToCompile, var) <- checkAndSet c
+                when needsToCompile $ 
+                    tell $ pure $ ctypep c <> " " <> var <> " = " <> call
                 pure var
-        compile' (Literal i o) = 
+        compile' l@(Literal o) = 
             do
-                b <- checkAndAdd i
-                let var = gvn i
-                unless b $ tell $ pure $ ctype o <> " " <> var <> " = " <> cval o
+                (needsToCompile, var) <- checkAndSet l
+                when needsToCompile $ 
+                    tell $ pure $ ctype o <> " " <> var <> " = " <> cval o
                 pure var
         compile' (Variable s) = pure s
-        compile' e@(UnaryExpression i name o) = 
+        compile' e@(UnaryExpression name o) = 
             do
-                b <- checkAndAdd i
-                let var = gvn i
-                unless b $ 
+                (needsToCompile, var) <- checkAndSet e
+                when needsToCompile $ 
                     do
                         ovar <- compile' o
                         let lhs = ctypep e <> " " <> var <> " = "
@@ -329,11 +351,10 @@ compile ast =
                                 where args = ovar
                         tell $ pure $ lhs <> rhs
                 pure var
-        compile' e@(BinaryExpression i name o1 o2) = 
+        compile' e@(BinaryExpression name o1 o2) = 
             do
-                b <- checkAndAdd i
-                let var = gvn i
-                unless b $ 
+                (needsToCompile, var) <- checkAndSet e
+                when needsToCompile $ 
                     do
                         ovar1 <- compile' o1
                         ovar2 <- compile' o2
@@ -342,11 +363,10 @@ compile ast =
                                 where args = T.intercalate ", " [ovar1, ovar2]
                         tell $ pure $ lhs <> rhs
                 pure var
-        compile' e@(BinaryExpressionInfix i name o1 o2) = 
+        compile' e@(BinaryExpressionInfix name o1 o2) = 
             do
-                b <- checkAndAdd i
-                let var = gvn i
-                unless b $ 
+                (needsToCompile, var) <- checkAndSet e
+                when needsToCompile $ 
                     do
                         ovar1 <- compile' o1
                         ovar2 <- compile' o2
@@ -354,11 +374,10 @@ compile ast =
                             rhs = ovar1 <> " " <> name <> " " <> ovar2
                         tell $ pure $ lhs <> rhs
                 pure var
-        compile' e@(TernaryExpression i name o1 o2 o3) = 
+        compile' e@(TernaryExpression name o1 o2 o3) = 
             do
-                b <- checkAndAdd i
-                let var = gvn i
-                unless b $ 
+                (needsToCompile, var) <- checkAndSet e
+                when needsToCompile $ 
                     do
                         ovar1 <- compile' o1
                         ovar2 <- compile' o2
@@ -368,11 +387,10 @@ compile ast =
                                 where args = T.intercalate ", " [ovar1, ovar2, ovar3]
                         tell $ pure $ lhs <> rhs
                 pure var
-        compile' e@(QuaternaryExpression i name o1 o2 o3 o4) = 
+        compile' e@(QuaternaryExpression name o1 o2 o3 o4) = 
             do
-                b <- checkAndAdd i
-                let var = gvn i
-                unless b $ 
+                (needsToCompile, var) <- checkAndSet e
+                when needsToCompile $ 
                     do
                         ovar1 <- compile' o1
                         ovar2 <- compile' o2

@@ -12,11 +12,9 @@ import Arca.Language
 import Arca.Cuda.World.Internal
 
 -- | Helper to build stack op that drops 'a' value into an 'AST a' literal
-literalOp :: forall a w. (TextShow a, HasIdentifier w, HasStackLens w (AST a)) => a -> PartialStackOp w
+literalOp :: forall a w. (TextShow a, HasStackLens w (AST a)) => a -> PartialStackOp w
 literalOp a = PartialStackOp (OpName $ showt a) $ 
-    do
-        i <- ratchetId
-        pushL (stackLens :: StackLens w (AST a)) $ Literal i a
+        pushL (stackLens :: StackLens w (AST a)) $ Literal a
 
 -- | Helper to build stack op that drops 'a' value into an 'AST a' literal
 variableOp :: forall a w. (HasIdentifier w, HasStackLens w (AST a)) => Proxy a -> Text -> PartialStackOp w
