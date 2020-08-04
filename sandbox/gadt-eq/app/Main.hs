@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeOperators #-}
 
 module Main where
-
+{-
 import Data.Type.Equality
 import Data.Typeable
 
@@ -36,3 +36,4 @@ sameGadtType a b =
 
 main :: IO ()
 main = pure ()
+-}

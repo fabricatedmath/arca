@@ -59,12 +59,12 @@ instance
 instance
     ( HasAST o1, HasAST o2, HasAST o3
     ) => ToExpression (ThreeArg (AST o1) (AST o2) (AST o3)) where
-    toExpression uniqueId t (ThreeArg a b c) = TrinaryExpression uniqueId t a b c
+    toExpression uniqueId t (ThreeArg a b c) = TernaryExpression uniqueId t a b c
 
 instance 
     ( HasAST o1, HasAST o2, HasAST o3, HasAST o4
     ) => ToExpression (FourArg (AST o1) (AST o2) (AST o3) (AST o4)) where
-    toExpression uniqueId t (FourArg a b c d) = QuadrinaryExpression uniqueId t a b c d
+    toExpression uniqueId t (FourArg a b c d) = QuaternaryExpression uniqueId t a b c d
 
 {- OpIn -}
 
