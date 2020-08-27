@@ -65,6 +65,7 @@ target_compile_options(somethingLib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
                        #--fPIC
 #                       >)
                        
+add_executable(something2 ${SOMETHING_SOURCE_DIR}/sandbox/main.cu)
                      
 add_executable(something ${SOMETHING_SOURCE_DIR}/prog/main.cu)
 #target_compile_options(something PRIVATE --fPIC)
