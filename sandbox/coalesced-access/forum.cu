@@ -3,8 +3,6 @@
 
 using namespace std;
 
-//#include "HelperCuda.h"
-
 #define checkCudaErrors( err ) \
   if( err != cudaSuccess ) { \
     std::cerr << "ERROR: " << cudaGetErrorString( err ) << std::endl; \
@@ -13,13 +11,13 @@ using namespace std;
 
 const int numStrides = 256;
 const int numThreads = 256;
-const int numBlocks = 2;
 
 // Traditional access, whole warp/block coalesced read/write
 __global__
 void access01(float* d_mem) {
     for (int i = 0; i < numStrides; i++) {
-        const int idx = threadIdx.x + blockDim.x* i + blockIdx.x * blockDim.x * numStrides;
+        //const int idx = threadIdx.x + blockDim.x * i;
+        const int idx = threadIdx.x + numThreads * i;
         float v = d_mem[idx];
         d_mem[idx] = v + 1;
     }
@@ -29,7 +27,7 @@ void access01(float* d_mem) {
 __global__
 void access02(float* d_mem) {
     for (int i = 0; i < numStrides; i++) {
-        const int idx = threadIdx.x * numStrides + i + blockIdx.x * blockDim.x * numStrides;;
+        const int idx = threadIdx.x * numStrides + i;
         float v = d_mem[idx];
         d_mem[idx] = v + 1;
     }
@@ -46,7 +44,7 @@ void access03(float* d_mem) {
     const int tid = threadIdx.x % numFloatsChunked;
 
     for (int i = 0; i < numStrides; i++) {
-        const int idx = tid + numFloatsChunked * numStrides * chunk + i*numFloatsChunked + blockIdx.x * blockDim.x * numStrides;;
+        const int idx = tid + numFloatsChunked * numStrides * chunk + i*numFloatsChunked;
         float v = d_mem[idx];
         d_mem[idx] = v + 1;
     }
@@ -59,7 +57,7 @@ void runAccess01(float* d_mem) {
 
     auto start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < 100; i++) {
-        access01<<<numBlocks,numThreads>>>(d_mem);
+        access01<<<1,numThreads>>>(d_mem);
         checkCudaErrors( cudaDeviceSynchronize() );
     }
     checkCudaErrors( cudaDeviceSynchronize() );
@@ -77,7 +75,7 @@ void runAccess02(float* d_mem) {
 
     auto start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < 100; i++) {
-        access02<<<numBlocks,numThreads>>>(d_mem);
+        access02<<<1,numThreads>>>(d_mem);
         checkCudaErrors( cudaDeviceSynchronize() );
     }
     checkCudaErrors( cudaDeviceSynchronize() );
@@ -95,7 +93,7 @@ void runAccess03(float* d_mem) {
 
     auto start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < 100; i++) {
-        access03<<<numBlocks,numThreads>>>(d_mem);
+        access03<<<1,numThreads>>>(d_mem);
         checkCudaErrors( cudaDeviceSynchronize() );
     }
     checkCudaErrors( cudaDeviceSynchronize() );
@@ -107,7 +105,7 @@ void runAccess03(float* d_mem) {
 }
 
 int main() {
-    const int numElems = numStrides * numThreads * numBlocks;
+    const int numElems = numStrides * numThreads;
     const int elemSize = numElems * sizeof(float);
 
     float* h_mem = (float *) malloc(elemSize);
