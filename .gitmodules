@@ -4,3 +4,9 @@
 [submodule "sandbox/imgui-implot-example/3rdparty/implot"]
 	path = sandbox/imgui-implot-example/3rdparty/implot
 	url = https://github.com/epezent/implot
+[submodule "thirdparty/implot"]
+	path = thirdparty/implot
+	url = https://github.com/epezent/implot
+[submodule "thirdparty/imgui"]
+	path = thirdparty/imgui
+	url = https://github.com/ocornut/imgui
