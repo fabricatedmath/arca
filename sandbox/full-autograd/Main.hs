@@ -50,7 +50,8 @@ instance (Floating a) => Floating (Dual a) where
     = Dual (logBase u v) (((log v) * u' / u - (log u) * v' / v) / ((log u) ** 2))
 
 {-
-    AST to record what happens to numbers
+    AST to record what happens to numbers, not very typesafe (i.e. list instead of UnaryExpression, BinaryExpression...) 
+    for experimental purposes
 -}
 
 data AST = AST String | LiteralInteger Integer | Variable String | LiteralFloat Float
