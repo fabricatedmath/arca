@@ -3,6 +3,12 @@
 #include <cooperative_groups.h>
 #include <curand_kernel.h>
 
+/*
+    per block notification
+    every thread payload
+    
+*/
+
 using namespace std;
 
 using namespace cooperative_groups;
