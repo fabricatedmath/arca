@@ -1,6 +1,6 @@
 # Full autograd in Haskell
 
-Full autograd example using dual numbers and a simple not-very-type-safe list based AST
+Single file full autograd example using dual numbers and a simple not-very-type-safe list based AST
 
 In [Main.hs](https://github.com/fabricatedmath/arca/blob/main/sandbox/full-autograd/Main.hs), using these functions:
 ``` Haskell
