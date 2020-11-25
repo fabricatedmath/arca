@@ -1,3 +1,18 @@
+# Full autograd in Haskell
+
+Full autograd example using dual numbers and a simple not-very-type-safe list based AST
+
+In [Main.hs](https://github.com/fabricatedmath/arca/blob/main/sandbox/full-autograd/Main.hs), using these functions:
+``` Haskell
+f :: Floating a => a -> a
+f x = cos (x^2)
+
+g :: Floating a => a -> a
+g x = x^2 + 3*x^3 + cos (x^2)
+```
+outputs this
+
+```
 Running f..
 
 Answer at 2.0 is -0.6536436
@@ -177,4 +192,4 @@ AST "+"
             +- Variable "x"
             |
             `- Variable "x"
-
+```
