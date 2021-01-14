@@ -75,17 +75,23 @@ cudaFuncMultiSM worlds =
         globalFuncFooter
     where
         deviceFunc :: Int -> World -> (Text, [Text])
-        deviceFunc blockNum w = (funcName, funcDecl)
-            where
-                Just behavior = generateACudaProgram w
-                funcName = "deviceFunc_" <> showt blockNum
-                funcDecl =
-                    [ "__device__"
-                    , "float " <> funcName <> "()" <> " {"
-                    ] <> 
-                    tabLines' behavior <> 
-                    [ "}"
-                    ]
+        deviceFunc blockNum w = 
+            let
+                compileDeviceFunc behavior = 
+                    let
+                        funcName = "deviceFunc_" <> showt blockNum
+                        funcDecl =
+                            [ "__device__"
+                            , "float " <> funcName <> "()" <> " {"
+                            ] <> 
+                            tabLines' behavior <> 
+                            [ "}"
+                            ]
+                    in (funcName, funcDecl)
+            in case generateACudaProgram w of
+                    Nothing -> compileDeviceFunc ["return 0;"]
+                    Just behavior -> compileDeviceFunc behavior
+
         globalFuncHeader :: [Text]
         globalFuncHeader = 
             [ "extern \"C\" {"
@@ -151,7 +157,8 @@ randomFuncs :: IO ()
 randomFuncs = 
     do
         let numBlocks = 32
-        ws <- replicateM numBlocks $ generateRandomWorld 100
+        ws <- replicateM numBlocks $ generateRandomWorld 300
+        mapM_ (T.putStrLn . printWorld) ws
         let cudaCode = cudaFuncMultiSM ws 
         T.putStrLn cudaCode
         manageExceptT $ do

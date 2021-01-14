@@ -155,7 +155,7 @@ randomElementSampler =
 
             genOp :: m (StackOp World)
             genOp = do
-                let thresh = 0.3 :: Double
+                let thresh = 0.9 :: Double
                 r <- state $ random
                 case () of 
                     _ | r < thresh -> genCudaOp
@@ -177,8 +177,8 @@ randomElementSampler =
         r <- state $ random
         case () of 
             _ | r < thresh -> genOp
-              -- | otherwise -> genFloat
-              | otherwise -> genVariable
+              | otherwise -> genFloat
+              -- | otherwise -> genVariable
 
 cudaNamespaceOps :: NamespaceOps World
 cudaNamespaceOps = NamespaceOps (Namespace "Cuda") Nothing ops
@@ -283,8 +283,8 @@ generateRandomWorld limit =
         let s = randomElementSampler
         g <- newStdGen 
         let t = evalState (generateLanguageTree s 10 30) g :: LanguageTree (StackOp World)
-        --putStrLn $ drawLanguageTree $ fmap show t
-        --T.putStrLn $ showt $ Exec t
+        putStrLn $ drawLanguageTree $ fmap show t
+        T.putStrLn $ showt $ Exec t
         return $ runProg limit $ Exec t
 
 {-
