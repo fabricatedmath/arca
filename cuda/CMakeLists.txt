@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.17.3)
 
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 
-project(SOMETHING LANGUAGES CXX CUDA)
+project(ARCA LANGUAGES CXX CUDA)
 #SET(CUDA_SEPARABLE_COMPILATION ON)
 #find_package(CUDA REQUIRED)
 #enable_language(CUDA)
@@ -31,9 +31,9 @@ include_directories(
 #                        CUDA_SEPARABLE_COMPILATION ON
 # )
 
-add_library(somethingLib SHARED ${cpp_source_files} ${cuda_source_files})
+add_library(arca SHARED ${cpp_source_files} ${cuda_source_files})
 #target_compile_features(somethingLib PUBLIC cxx_std_11)
-set_target_properties( somethingLib
+set_target_properties( arca
                        PROPERTIES 
                        CUDA_SEPARABLE_COMPILATION ON
                        POSITION_INDEPENDENT_CODE ON
@@ -42,7 +42,7 @@ set_target_properties( somethingLib
 
 #set_target_properties(somethingLib PROPERTIES POSITION_INDEPENDENT_CODE ON)
 #target_compile_options(something PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--ptxas-options=-v -gencode arch=compute_75,code=sm_75>) 
-target_compile_options(somethingLib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
+target_compile_options(arca PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
     --ptxas-options=-v 
     -gencode arch=compute_75,code=sm_75>
 #    -rdc=true 
@@ -65,9 +65,9 @@ target_compile_options(somethingLib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
                        #--fPIC
 #                       >)
                        
-add_executable(something2 ${SOMETHING_SOURCE_DIR}/sandbox/main.cu)
+add_executable(something2 ${ARCA_SOURCE_DIR}/sandbox/main.cu)
                      
-add_executable(something ${SOMETHING_SOURCE_DIR}/prog/main.cu)
+add_executable(something ${ARCA_SOURCE_DIR}/prog/main.cu)
 #target_compile_options(something PRIVATE --fPIC)
 set_target_properties(something PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
@@ -81,12 +81,12 @@ set_target_properties(something PROPERTIES POSITION_INDEPENDENT_CODE ON)
 set_property(TARGET something 
              PROPERTY CUDA_SEPARABLE_COMPILATION ON)
 target_link_libraries( something
-    somethingLib
+    arca
     cuda
     nvrtc
 )
 
-target_link_libraries( somethingLib
+target_link_libraries( arca
     cuda
     nvrtc
 )

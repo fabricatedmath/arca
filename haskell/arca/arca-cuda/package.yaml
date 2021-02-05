@@ -8,7 +8,6 @@ copyright:           "2020 Author name here"
 
 extra-source-files:
 - README.md
-- ChangeLog.md
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -38,10 +37,10 @@ library:
   ghc-options:
   - -Wall
   - -O2
-  extra-lib-dirs:
-    /home/cdurham/epigenisys/cuda/build
+#  extra-lib-dirs:
+    #$HOME/arca/cuda/build
   extra-libraries:
-    somethingLib
+    arca
 
 executables:
   arca-cuda-exe:
