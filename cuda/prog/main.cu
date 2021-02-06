@@ -45,7 +45,6 @@ int main() {
     const int ptxCompilerLogStrLen = ptxCompilerGetLogStrLen(ptxCompiler);
     const string logStr(ptxCompilerLogStr,ptxCompilerLogStrLen);
     cout << "Compile Log: " << "\n" << logStr << endl;
-
   }
 
   if (result == NVRTC_SUCCESS) {
