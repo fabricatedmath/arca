@@ -13,15 +13,15 @@ set(CMAKE_CUDA_STANDARD 17)
 #find_package(CUDA REQUIRED)
 
 file(GLOB cuda_source_files
-    "${SOMETHING_SOURCE_DIR}/src/*.cu"
+    "${ARCA_SOURCE_DIR}/src/*.cu"
     #"${SOMETHING_SOURCE_DIR}/src/examples/*.cu"
-    "${SOMETHING_SOURCE_DIR}/src/extern/*.cu"
+    "${ARCA_SOURCE_DIR}/src/extern/*.cu"
 )
 
 include_directories(
-    ${SOMETHING_SOURCE_DIR}/src
+    ${ARCA_SOURCE_DIR}/src
     #${SOMETHING_SOURCE_DIR}/src/examples
-    ${SOMETHING_SOURCE_DIR}/src/extern
+    ${ARCA_SOURCE_DIR}/src/extern
 )
 
 #add_library(somethingPTX OBJECT ${cuda_source_files})
