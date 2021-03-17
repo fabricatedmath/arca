@@ -1,5 +1,3 @@
-![arca mutant](../media/arca-mutant.jpg?raw=true)
-
 # arca
 In progress...
 
